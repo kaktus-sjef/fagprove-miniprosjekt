@@ -1,29 +1,27 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/authContext";
+import { auth } from "../../firebase/firebase";
 
-import { ReactNode } from "react";
+function ProtectedRoute({
+  children
+}: {
+  children: React.ReactNode;
+}) {
+  const { user } = useAuth();
+  const location = useLocation();
+  const currentUser = user ?? auth.currentUser;
 
+  if (!currentUser) {
+    return (
+      <Navigate
+        to="/"
+        replace
+        state={{ from: location.pathname }}
+      />
+    );
+  }
 
-interface Props {
-    children: ReactNode;
+  return <>{children}</>;
 }
-
-
-function ProtectedRoute({ children }: Props) {
-
-    const { user, loading } = useAuth();
-
-    if (loading) {
-        return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Laster...</div>;
-    }
-
-    if (!user) {
-        return <Navigate to="/" />;
-    }
-
-    return <>{children}</>;
-
-}
-
 
 export default ProtectedRoute;

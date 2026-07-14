@@ -26,38 +26,10 @@
     align-items: center;
     gap: 15px;
 }
-.search-box {
-  display: flex;
-  align-items: center;
-  position: relative;
-  width: 260px;
-}
-
-.search-box svg {
-  position: absolute;
-  left: 14px;
-  pointer-events: none;
-}
 .icon{
     color: #6B7280;
     height: 20px;
     width: 20px;
-}
-
-.search-box input {
-    width: 100%;
-
-    padding: 10px 14px 10px 40px;
-
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
-
-    font-size: 15px;
-}
-
-.search-box input:focus {
-    outline: none;
-    border-color: #0F766E;
 }
 
 .icon-button {

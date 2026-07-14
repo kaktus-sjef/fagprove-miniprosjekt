@@ -1,59 +1,93 @@
 import "./header.css";
+
+import { useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
+
 import { FaRegBell } from "react-icons/fa";
-import { IoIosSearch } from "react-icons/io";
 import { GoQuestion } from "react-icons/go";
 
-
+import { auth } from "../../firebase/firebase";
+import { useAuth } from "../../context/authContext";
+import SearchBar from "../searchBar/searchBar";
 
 interface HeaderProps {
-    title: string;
+  title: string;
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(" ");
+
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
 }
 
 function Header({ title }: HeaderProps) {
-    return (
-        <header className="header">
+  const navigate = useNavigate();
+  const { user, userProfile } = useAuth();
 
-            <div className="header-left">
-                <h1>{title}</h1>
-                <p>Velkommen til administrasjonssenteret</p>
-            </div>
+  const displayName =
+    userProfile?.name ||
+    user?.displayName ||
+    "Administrator";
 
-            <div className="header-right">
+  const roleText =
+    userProfile?.role === "waiting"
+      ? "Venter på rolle"
+      : userProfile?.role ?? "Administrator";
 
-                <div className="search-box">
-                    {IoIosSearch({className: "icon"})}
-                    <input
-                        type="text"
-                        placeholder="Søk..."
-                    />
-                </div>
+  const handleUserMenuChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    if (event.target.value === "logout") {
+      await signOut(auth);
+      navigate("/");
+    }
+  };
 
-                <button className="icon-button">
-                    {FaRegBell({className: "icon"})}
-                </button>
+  return (
+    <header className="header">
+      <div className="header-left">
+        <h1>{title}</h1>
+        <p>Velkommen, {displayName}</p>
+      </div>
 
-                <button className="icon-button">
-                    {GoQuestion({className: "icon"})}
-                </button>
+      <div className="header-right">
+        <SearchBar
+          placeholder="Søk..."
+          options={[
+            { value: "all", label: "Alt" },
+            { value: "users", label: "Brukere" },
+            { value: "teams", label: "Team" }
+          ]}
+        />
 
-                <div className="user-menu">
+        <button className="icon-button" aria-label="Varsler">
+          {FaRegBell({ className: "icon" })}
+        </button>
 
-                    <div className="user-avatar">
-                        A
-                    </div>
+        <button className="icon-button" aria-label="Hjelp">
+          {GoQuestion({ className: "icon" })}
+        </button>
 
-                    <select>
-                        <option>Administrator</option>
-                        <option>Min profil</option>
-                        <option>Logg ut</option>
-                    </select>
+        <div className="user-menu">
+          <div className="user-avatar">
+            {getInitials(displayName)}
+          </div>
 
-                </div>
-
-            </div>
-
-        </header>
-    );
+          <select defaultValue="" onChange={handleUserMenuChange}>
+            <option value="" disabled>
+              {displayName} · {roleText}
+            </option>
+            <option value="profile">Min profil</option>
+            <option value="logout">Logg ut</option>
+          </select>
+        </div>
+      </div>
+    </header>
+  );
 }
 
 export default Header;

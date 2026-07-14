@@ -1,233 +1,478 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+
+import {
+  createUserWithEmailAndPassword,
+  getRedirectResult,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signInWithRedirect,
+  User
+} from "firebase/auth";
 
 import { auth, googleProvider } from "../../firebase/firebase";
 
+import {
+  createUserProfile,
+  getLoginProviderByEmail,
+  getUserProfile,
+  syncUserAfterLogin
+} from "../../services/userService";
+
 import { FcGoogle } from "react-icons/fc";
-import { FaRegEye, FaRegEyeSlash  } from "react-icons/fa6";
+import { FaRegEye, FaRegEyeSlash } from "react-icons/fa6";
+
 import NetworkBackground from "../../components/networkBackground/networkBackground";
+import { useAuth } from "../../context/authContext";
 
 import "./login.css";
 
-
 function Login() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const hasCheckedRedirect = useRef(false);
+  const { user, loading } = useAuth();
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState("");
-    const [isSignUp, setIsSignUp] = useState(false);
-    const [fieldErrors, setFieldErrors] = useState({ email: false, password: false });
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
-    const validateFields = () => {
-        const errors = {
-            email: !email,
-            password: !password
-        };
-        setFieldErrors(errors);
-        return !errors.email && !errors.password;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [pendingGoogleUser, setPendingGoogleUser] = useState<User | null>(null);
+  const [redirectChecked, setRedirectChecked] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState({
+    name: false,
+    email: false,
+    password: false
+  });
+
+  useEffect(() => {
+  if (hasCheckedRedirect.current) return;
+  hasCheckedRedirect.current = true;
+
+  const handleRedirectResult = async () => {
+    try {
+
+      const result = await getRedirectResult(auth);
+      const currentUser = result?.user;
+
+      if (!currentUser) {
+        return;
+      }
+
+      const existingProfile = await getUserProfile(currentUser.uid);
+
+      if (existingProfile) {
+        void syncUserAfterLogin(currentUser).catch((error) => {
+          console.error("Kunne ikke oppdatere sist innlogget:", error);
+        });
+        navigate("/dashboard");
+        return;
+      }
+
+      setPendingGoogleUser(currentUser);
+      setName(currentUser.displayName ?? "");
+      setEmail(currentUser.email ?? "");
+      setIsSignUp(false);
+    } catch (error) {
+      console.error("Feil ved Google redirect:", error);
+      setError("Kunne ikke fullføre Google-innlogging.");
+    } finally {
+      setRedirectChecked(true);
+    }
+  };
+
+  handleRedirectResult();
+}, [navigate]);
+
+  useEffect(() => {
+    if (!redirectChecked || loading || pendingGoogleUser || !user) return;
+    navigate("/dashboard", { replace: true });
+  }, [loading, navigate, pendingGoogleUser, redirectChecked, user]);
+
+  const validateFields = () => {
+    const errors = {
+      name: isSignUp && !name.trim(),
+      email: !email.trim(),
+      password: !password
     };
 
-    const handleLogin = async () => {
+    setFieldErrors(errors);
 
-        if (!validateFields()) {
-            return;
-        }
+    return !errors.name && !errors.email && !errors.password;
+  };
 
-        try {
+  const handleLogin = async () => {
+    setError("");
 
-            await signInWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
+    if (!validateFields()) return;
 
-            navigate("/dashboard");
+    try {
+      setIsLoading(true);
 
-        } catch (error) {
+      const existingProvider = await getLoginProviderByEmail(email);
 
-            setError("Feil e-post eller passord");
+      if (existingProvider?.provider === "google") {
+        setError(
+          "Denne e-posten er registrert med Google. Fortsett med Google for å logge inn."
+        );
+        return;
+      }
 
-        }
-    };
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
 
-    const handleGoogleLogin = async () => {
+      void syncUserAfterLogin(userCredential.user).catch((error) => {
+        console.error("Kunne ikke oppdatere sist innlogget:", error);
+      });
 
-        try {
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Feil ved innlogging:", error);
 
-            await signInWithPopup(
-                auth,
-                googleProvider
-            );
+      if (error.code === "auth/invalid-credential") {
+        setError("Feil e-post eller passord.");
+      } else {
+        setError("Kunne ikke logge inn.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-            navigate("/dashboard");
+  const handleGoogleLogin = async () => {
+  setError("");
 
-        } catch (error) {
+  try {
+    setIsLoading(true);
 
-            setError("Kunne ikke logge inn med Google");
+    await signInWithRedirect(auth, googleProvider);
+  } catch (error) {
+    console.error("Feil ved Google-login:", error);
+    setError("Kunne ikke starte Google-login.");
+    setIsLoading(false);
+  }
+};
 
-        }
+  const handleSignUp = async () => {
+    setError("");
 
-    };
+    if (!validateFields()) return;
 
-    const handleSignUp = async () => {
+    if (password.length < 6) {
+      setError("Passord må være minst 6 tegn.");
+      return;
+    }
 
-        if (!validateFields()) {
-            return;
-        }
+    try {
+      setIsLoading(true);
 
-        if (password.length < 6) {
-            setError("Passord må være minst 6 tegn");
-            return;
-        }
+      const existingProvider = await getLoginProviderByEmail(email);
 
-        try {
+      if (existingProvider?.provider === "google") {
+        setError(
+          "Denne e-posten er allerede registrert med Google. Fortsett med Google for å logge inn."
+        );
+        return;
+      }
 
-            await createUserWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
 
-            navigate("/dashboard");
+      await sendEmailVerification(userCredential.user);
 
-        } catch (error: any) {
+      await createUserProfile(userCredential.user, {
+        name,
+        phone,
+        authProvider: "password"
+      });
 
-            if (error.code === "auth/email-already-in-use") {
-                setError("E-posten er allerede registrert");
-            } else if (error.code === "auth/invalid-email") {
-                setError("Ugyldig e-postadresse");
-            } else {
-                setError("Feil ved registrering. Prøv igjen.");
-            }
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Feil ved registrering:", error);
 
-        }
-    };
+      if (error.code === "auth/email-already-in-use") {
+        setError("E-posten er allerede registrert.");
+      } else if (error.code === "auth/invalid-email") {
+        setError("Ugyldig e-postadresse.");
+      } else if (error.code === "permission-denied") {
+        setError("Brukeren ble opprettet, men profilen kunne ikke lagres.");
+      } else {
+        setError("Feil ved registrering. Prøv igjen.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return (
-        <div className="login-page">
-            
-            <NetworkBackground />
-            <div className="login-card">
+  const handleCompleteGoogleProfile = async () => {
+    setError("");
 
-                <h1>Administrasjonssenter</h1>
+    if (!pendingGoogleUser) return;
 
-                <p>{isSignUp ? "Opprett ny bruker" : "Logg inn for å fortsette"}</p>
+    if (!name.trim()) {
+      setFieldErrors({
+        name: true,
+        email: false,
+        password: false
+      });
+      return;
+    }
 
+    try {
+      setIsLoading(true);
 
-                <form>
+      await createUserProfile(pendingGoogleUser, {
+        name,
+        phone,
+        authProvider: "google"
+      });
 
-                    <div className="form-group">
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Feil ved fullføring av Google-profil:", error);
+      setError("Kunne ikke fullføre profilen.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-                        <label>
-                            E-post
-                            <span style={{ color: fieldErrors.email ? "red" : "#ccc" }}>*</span>
-                        </label>
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-                        <input
-                            type="email"
-                            placeholder="epost@firma.no"
-                            value={email}
-                            onChange={(e) => {
-                                setEmail(e.target.value);
-                                if (fieldErrors.email && e.target.value) {
-                                    setFieldErrors({ ...fieldErrors, email: false });
-                                }
-                            }}
-                            style={{ borderColor: fieldErrors.email ? "red" : "" }}
-                        />
+    if (pendingGoogleUser) {
+      await handleCompleteGoogleProfile();
+      return;
+    }
 
-                    </div>
+    if (isSignUp) {
+      await handleSignUp();
+    } else {
+      await handleLogin();
+    }
+  };
 
+  return (
+    <div className="login-page">
+      <NetworkBackground />
 
-                    <div className="form-group">
+      <div className="login-card">
+        <h1>Administrasjonssenter</h1>
 
-                        <label>
-                            Passord
-                            <span style={{ color: fieldErrors.password ? "red" : "#ccc" }}>*</span>
-                        </label>
+        <p>
+          {pendingGoogleUser
+            ? "Fullfør profilen for å fortsette"
+            : isSignUp
+              ? "Opprett ny bruker"
+              : "Logg inn for å fortsette"}
+        </p>
 
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                placeholder="********"
-                                value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    if (fieldErrors.password && e.target.value) {
-                                        setFieldErrors({ ...fieldErrors, password: false });
-                                    }
-                                }}
-                                style={{
-                                    flex: 1,
-                                    borderColor: fieldErrors.password ? "red" : ""
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                style={{
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    fontSize: "18px"
-                                }}
-                            >
-                                {showPassword ? FaRegEye({className: "icon"}) : FaRegEyeSlash({className: "icon"})}
-                            </button>
-                        </div>
+        <form onSubmit={handleSubmit}>
+          {(isSignUp || pendingGoogleUser) && (
+            <>
+              <div className="form-group">
+                <label>
+                  Navn
+                  <span style={{ color: fieldErrors.name ? "red" : "#ccc" }}>
+                    *
+                  </span>
+                </label>
 
-                    </div>
+                <input
+                  type="text"
+                  placeholder="Ola Nordmann"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
 
+                    if (fieldErrors.name && e.target.value.trim()) {
+                      setFieldErrors({
+                        ...fieldErrors,
+                        name: false
+                      });
+                    }
+                  }}
+                  style={{
+                    borderColor: fieldErrors.name ? "red" : ""
+                  }}
+                />
+              </div>
 
-                    {error && <p style={{ color: "red" }}>{error}</p>}
+              <div className="form-group">
+                <label>Telefonnummer</label>
 
+                <input
+                  type="tel"
+                  placeholder="Valgfritt"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
-                    <button
-                        type="button"
-                        onClick={isSignUp ? handleSignUp : handleLogin}
-                    >
-                        {isSignUp ? "Opprett bruker" : "Logg inn"}
-                    </button>
-                    <p style={{ textAlign: "center", margin: "12px 0" }}>eller</p>
-                    <button
-                        type="button"
-                        onClick={handleGoogleLogin}
-                        style={{
-                            marginTop: "12px",
-                            background: "#fff",
-                            color: "#333",
-                            border: "1px solid #ccc"
-                        }}
-                    >
-                        {FcGoogle({ className: "icon" })}
-                        Fortsett med Google
-                    </button>
+          {!pendingGoogleUser && (
+            <>
+              <div className="form-group">
+                <label>
+                  E-post
+                  <span style={{ color: fieldErrors.email ? "red" : "#ccc" }}>
+                    *
+                  </span>
+                </label>
 
-                </form>
+                <input
+                  type="email"
+                  placeholder="epost@firma.no"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
 
-                <p style={{ marginTop: "20px", textAlign: "center" }}>
-                    {isSignUp ? "Har du allerede en bruker? " : "Har du ikke en bruker? "}
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIsSignUp(!isSignUp);
-                            setError("");
-                            setFieldErrors({ email: false, password: false });
-                        }}
-                        style={{ background: "none", border: "none", color: "#0F766E", cursor: "pointer", textDecoration: "underline" }}
-                    >
-                        {isSignUp ? "Logg inn" : "Opprett bruker"}
-                    </button>
-                </p>
+                    if (fieldErrors.email && e.target.value.trim()) {
+                      setFieldErrors({
+                        ...fieldErrors,
+                        email: false
+                      });
+                    }
+                  }}
+                  style={{
+                    borderColor: fieldErrors.email ? "red" : ""
+                  }}
+                />
+              </div>
 
-            </div>
+              <div className="form-group">
+                <label>
+                  Passord
+                  <span style={{ color: fieldErrors.password ? "red" : "#ccc" }}>
+                    *
+                  </span>
+                </label>
 
-        </div>
-    );
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="********"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+
+                      if (fieldErrors.password && e.target.value) {
+                        setFieldErrors({
+                          ...fieldErrors,
+                          password: false
+                        });
+                      }
+                    }}
+                    style={{
+                      flex: 1,
+                      borderColor: fieldErrors.password ? "red" : "",
+                      textTransform: "none"
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "18px",
+                      width: "auto",
+                      color: "#64748b"
+                    }}
+                    aria-label={showPassword ? "Skjul passord" : "Vis passord"}
+                  >
+                    {showPassword
+                      ? FaRegEye({ className: "icon" })
+                      : FaRegEyeSlash({ className: "icon" })}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {error && <p style={{ color: "red" }}>{error}</p>}
+
+          <button type="submit" disabled={isLoading}>
+            {isLoading
+              ? pendingGoogleUser
+                ? "Lagrer profil..."
+                : isSignUp
+                  ? "Oppretter bruker..."
+                  : "Logger inn..."
+              : pendingGoogleUser
+                ? "Fortsett"
+                : isSignUp
+                  ? "Opprett bruker"
+                  : "Logg inn"}
+          </button>
+
+          {!pendingGoogleUser && (
+            <>
+              <p style={{ textAlign: "center", margin: "12px 0" }}>eller</p>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                style={{
+                  marginTop: "12px",
+                  background: "#fff",
+                  color: "#333",
+                  border: "1px solid #ccc"
+                }}
+              >
+                {FcGoogle({ className: "icon" })}
+                Fortsett med Google
+              </button>
+
+              <p style={{ marginTop: "20px", textAlign: "center" }}>
+                {isSignUp ? "Har du allerede en bruker? " : "Har du ikke en bruker? "}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setError("");
+                    setFieldErrors({
+                      name: false,
+                      email: false,
+                      password: false
+                    });
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#0f766e",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    width: "auto",
+                    padding: 0
+                  }}
+                >
+                  {isSignUp ? "Logg inn" : "Opprett bruker"}
+                </button>
+              </p>
+            </>
+          )}
+        </form>
+      </div>
+    </div>
+  );
 }
-
 
 export default Login;
