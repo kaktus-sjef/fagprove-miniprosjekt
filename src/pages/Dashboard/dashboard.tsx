@@ -11,7 +11,8 @@ import {
   FaFilter,
   FaLongArrowAltDown,
   FaLongArrowAltUp,
-  FaUsers
+  FaUsers,
+  FaMinus 
 } from "react-icons/fa";
 
 import { FaUserCheck, FaUserMinus } from "react-icons/fa6";
@@ -34,7 +35,7 @@ function getInitials(name: string) {
 }
 
 function formatDate(dateValue: any) {
-  if (!dateValue) return "Ikke registrert";
+  if (!dateValue) return FaMinus({ className: "icon missing-value-icon" });
 
   if (dateValue.toDate) {
     return dateValue.toDate().toLocaleDateString("no-NO", {
@@ -46,7 +47,7 @@ function formatDate(dateValue: any) {
     });
   }
 
-  return "Ikke registrert";
+  return FaMinus({ className: "missing-value-icon " });
 }
 
 function formatRole(role: string) {
@@ -66,6 +67,25 @@ function formatRole(role: string) {
 
 function formatStatus(status: string) {
   return status === "active" ? "Aktiv" : "Inaktiv";
+}
+
+function formatTeam(team?: string | null) {
+  switch (team) {
+    case "admin":
+      return "Administrasjon";
+    case "security":
+      return "Sikkerhet";
+    case "accounting":
+      return "Økonomi";
+    case "it":
+      return "IT";
+    case "customerservice":
+      return "Kundeservice";
+    case "sales":
+      return "Salg";
+    default:
+      return team || "Ikke satt";
+  }
 }
 
 function Dashboard() {
@@ -105,13 +125,13 @@ function Dashboard() {
         all: [
           user.name,
           user.email,
-          user.team,
+          formatTeam(user.team),
           formatRole(user.role),
           formatStatus(user.status)
         ].join(" "),
         name: user.name ?? "",
         email: user.email ?? "",
-        team: user.team ?? "",
+        team: formatTeam(user.team),
         role: formatRole(user.role),
         status: formatStatus(user.status)
       };
@@ -142,8 +162,8 @@ function Dashboard() {
         <Header title="Oversikt" />
 
         <section className="dashboard-analytics">
-          <div className="analytics-card">
-            <div className="icon-box">
+          <div className="analytics-card stat-total">
+            <div className="icon-box stat-icon-total">
               {FaUsers({ className: "icon" })}
             </div>
 
@@ -152,16 +172,16 @@ function Dashboard() {
               <li>
                 <h3>{totalUsers}</h3>
               </li>
-              <li className="analytics-change">
-                {FaLongArrowAltUp({ className: "icon" })}
+              <li className="analytics-change change-neutral">
+                {FaMinus({ className: "icon" })}
                 {totalUsers}
                 <p>Registrert totalt</p>
               </li>
             </ul>
           </div>
 
-          <div className="analytics-card">
-            <div className="icon-box">
+          <div className="analytics-card stat-active">
+            <div className="icon-box stat-icon-active">
               {FaUserCheck({ className: "icon" })}
             </div>
 
@@ -170,7 +190,7 @@ function Dashboard() {
               <li>
                 <h3>{activeUsers}</h3>
               </li>
-              <li className="analytics-change">
+              <li className="analytics-change change-positive">
                 {FaLongArrowAltUp({ className: "icon" })}
                 {activeUsers}
                 <p>Aktive nå</p>
@@ -178,8 +198,8 @@ function Dashboard() {
             </ul>
           </div>
 
-          <div className="analytics-card">
-            <div className="icon-box">
+          <div className="analytics-card stat-inactive">
+            <div className="icon-box stat-icon-inactive">
               {FaUserMinus({ className: "icon" })}
             </div>
 
@@ -188,7 +208,7 @@ function Dashboard() {
               <li>
                 <h3>{inactiveUsers}</h3>
               </li>
-              <li className="analytics-change">
+              <li className="analytics-change change-negative">
                 {FaLongArrowAltDown({ className: "icon" })}
                 {inactiveUsers}
                 <p>Inaktive nå</p>
@@ -292,7 +312,7 @@ function Dashboard() {
 
                       <td>{user.email}</td>
 
-                      <td>{user.team || "Ikke satt"}</td>
+                      <td>{formatTeam(user.team)}</td>
 
                       <td>
                         <span className={`role-badge ${user.role}`}>

@@ -33,6 +33,7 @@
 }
 
 .icon-button {
+    position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -50,6 +51,102 @@
 
 .icon-button:hover {
     background: #E5E7EB;
+}
+
+.notification-menu {
+    position: relative;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 14px;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    z-index: 30;
+    width: 340px;
+    padding: 10px;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
+}
+
+.notification-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 6px 10px;
+    border-bottom: 1px solid #EEF2F7;
+}
+
+.notification-dropdown-header strong {
+    color: #102A43;
+}
+
+.notification-dropdown-header button {
+    width: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #0F766E;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.notification-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    padding: 12px 8px;
+    border: none;
+    border-bottom: 1px solid #EEF2F7;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #334155;
+    text-align: left;
+}
+
+.notification-item:hover {
+    background: #F8FAFC;
+}
+
+.notification-item.warning {
+    background: #FFFBEB;
+}
+
+.notification-item strong {
+    color: #102A43;
+    font-size: 14px;
+}
+
+.notification-item span,
+.notification-empty {
+    margin: 0;
+    color: #64748B;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.notification-empty {
+    padding: 14px 8px 6px;
 }
 
 .user-menu {

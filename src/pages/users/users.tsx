@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { FaPen, FaPlus, FaTimes } from "react-icons/fa";
+import { FaEllipsisH, FaMinus, FaPen, FaPlus, FaTimes } from "react-icons/fa";
 
 import Header from "../../components/header/header";
 import Sidebar from "../../components/sidebar/sidebar";
@@ -13,8 +13,9 @@ import {
   UserProfile,
   UserRole
 } from "../../services/userService";
+import { logActivity } from "../../services/activityLogService";
 
-import "../adminShared/adminPages.css";
+import "./users.css";
 import "../Dashboard/dashboard.css";
 
 type UserFormState = ManageUserInput;
@@ -29,9 +30,10 @@ const emptyForm: UserFormState = {
 };
 
 function getInitials(name: string) {
-  const parts = name.trim().split(" ");
+  const trimmedName = name.trim();
+  const parts = trimmedName.split(" ");
 
-  if (!name.trim()) return "?";
+  if (!trimmedName) return "?";
 
   if (parts.length === 1) {
     return parts[0].charAt(0).toUpperCase();
@@ -41,7 +43,7 @@ function getInitials(name: string) {
 }
 
 function formatDate(dateValue: any) {
-  if (!dateValue) return "Ikke registrert";
+  if (!dateValue) return FaMinus({ className: "missing-value-icon " });
 
   if (dateValue.toDate) {
     return dateValue.toDate().toLocaleDateString("no-NO", {
@@ -53,7 +55,7 @@ function formatDate(dateValue: any) {
     });
   }
 
-  return "Ikke registrert";
+  return FaMinus({ className: "missing-value-icon " });
 }
 
 function formatRole(role: string) {
@@ -79,6 +81,25 @@ function formatBoolean(value: boolean) {
   return value ? "Ja" : "Nei";
 }
 
+function formatTeam(team?: string | null) {
+  switch (team) {
+    case "admin":
+      return "Administrasjon";
+    case "security":
+      return "Sikkerhet";
+    case "accounting":
+      return "Økonomi";
+    case "it":
+      return "IT";
+    case "customerservice":
+      return "Kundeservice";
+    case "sales":
+      return "Salg";
+    default:
+      return team || "Ikke satt";
+  }
+}
+
 function getFormFromUser(user: UserProfile): UserFormState {
   return {
     name: user.name ?? "",
@@ -101,8 +122,9 @@ function Users() {
   const [error, setError] = useState("");
   const [formError, setFormError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [form, setForm] = useState<UserFormState>(emptyForm);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -130,7 +152,7 @@ function Users() {
           user.name,
           user.email,
           user.phone,
-          user.team,
+          formatTeam(user.team),
           formatRole(user.role),
           formatStatus(user.status),
           formatBoolean(user.emailVerified),
@@ -141,7 +163,7 @@ function Users() {
         name: user.name ?? "",
         email: user.email ?? "",
         phone: user.phone ?? "",
-        team: user.team ?? "",
+        team: formatTeam(user.team),
         role: formatRole(user.role),
         status: formatStatus(user.status)
       };
@@ -159,6 +181,7 @@ function Users() {
 
   const openCreateModal = () => {
     setEditingUser(null);
+    setOpenActionsFor(null);
     setForm(emptyForm);
     setFormError("");
     setIsModalOpen(true);
@@ -166,6 +189,7 @@ function Users() {
 
   const openEditModal = (user: UserProfile) => {
     setEditingUser(user);
+    setOpenActionsFor(null);
     setForm(getFormFromUser(user));
     setFormError("");
     setIsModalOpen(true);
@@ -208,14 +232,26 @@ function Users() {
 
       if (editingUser) {
         await updateManagedUserProfile(editingUser.uid, form);
+
+        // AKTIVITETSLOGG + ROLLE-GODKJENNING: Logger når en ventende bruker får tildelt rolle.
+        if (editingUser.role === "waiting" && form.role !== "waiting") {
+          void logActivity({
+            type: "role_assigned",
+            level: "success",
+            title: "Rolle godkjent",
+            description: `${form.name} ble godkjent som ${formatRole(form.role)}.`,
+            targetId: editingUser.uid,
+            targetName: form.name
+          }).catch((error) => {
+            console.error("Kunne ikke logge rolle-godkjenning:", error);
+          });
+        }
       } else {
         await createManagedUserProfile(form);
       }
 
       await fetchUsers();
-      setIsModalOpen(false);
-      setEditingUser(null);
-      setForm(emptyForm);
+      closeModal();
     } catch (error) {
       console.error("Kunne ikke lagre bruker:", error);
       setFormError("Kunne ikke lagre brukeren.");
@@ -286,7 +322,7 @@ function Users() {
                 className="primary-action-button"
                 onClick={openCreateModal}
               >
-                {FaPlus({ className: "icon" })}
+                {FaPlus({ className: "icon", style: { color: "white" } })}
                 Legg til bruker
               </button>
             </div>
@@ -336,47 +372,56 @@ function Users() {
                             <span>{user.name || "Ukjent bruker"}</span>
                           </div>
                         </td>
-
-                        <td>{user.email || "Ikke registrert"}</td>
-
+                        <td>{user.email || FaMinus({ className: "missing-value-icon " })}</td>
                         <td>
                           <span className={`status-badge ${user.emailVerified ? "active" : "inactive"}`}>
                             {formatBoolean(user.emailVerified)}
                           </span>
                         </td>
-
-                        <td>{user.phone || "Ikke registrert"}</td>
-                        <td>{user.team || "Ikke satt"}</td>
-
+                        <td>{user.phone || FaMinus({ className: "missing-value-icon " })}</td>
+                        <td>{formatTeam(user.team)}</td>
                         <td>
                           <span className={`role-badge ${user.role}`}>
                             {formatRole(user.role)}
                           </span>
                         </td>
-
                         <td>
                           <span className={`status-badge ${user.roleVerified ? "active" : "inactive"}`}>
                             {formatBoolean(user.roleVerified)}
                           </span>
                         </td>
-
                         <td>
                           <span className={`status-badge ${user.status}`}>
                             {formatStatus(user.status)}
                           </span>
                         </td>
-
                         <td>{formatDate(user.createdAt)}</td>
                         <td>{formatDate(user.lastLogin)}</td>
                         <td>
-                          <button
-                            type="button"
-                            className="action-button"
-                            onClick={() => openEditModal(user)}
-                            aria-label={`Rediger ${user.name || user.email}`}
-                          >
-                            {FaPen({ className: "icon" })}
-                          </button>
+                          <div className="actions-menu">
+                            <button
+                              type="button"
+                              className="action-button"
+                              onClick={() => setOpenActionsFor(openActionsFor === user.uid ? null : user.uid)}
+                              aria-expanded={openActionsFor === user.uid}
+                              aria-label={`Handlinger for ${user.name || user.email}`}
+                            >
+                              {FaEllipsisH({ className: "icon" })}
+                            </button>
+
+                            {openActionsFor === user.uid && (
+                              <div className="actions-dropdown">
+                                <button
+                                  type="button"
+                                  className="actions-dropdown-item"
+                                  onClick={() => openEditModal(user)}
+                                >
+                                  {FaPen({ className: "icon" })}
+                                  Rediger
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -402,9 +447,7 @@ function Users() {
                   {editingUser ? "Rediger bruker" : "Legg til bruker"}
                 </h2>
                 <p>
-                  {editingUser
-                    ? "Oppdater brukerprofilen."
-                    : "Opprett en ny brukerprofil."}
+                  {editingUser ? "Oppdater brukerprofilen." : "Opprett en ny brukerprofil."}
                 </p>
               </div>
 

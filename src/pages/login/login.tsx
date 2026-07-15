@@ -5,8 +5,10 @@ import {
   createUserWithEmailAndPassword,
   getRedirectResult,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithRedirect,
+  signOut,
   User
 } from "firebase/auth";
 
@@ -18,6 +20,7 @@ import {
   getUserProfile,
   syncUserAfterLogin
 } from "../../services/userService";
+import { logActivity } from "../../services/activityLogService";
 
 import { FcGoogle } from "react-icons/fc";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa6";
@@ -26,6 +29,29 @@ import NetworkBackground from "../../components/networkBackground/networkBackgro
 import { useAuth } from "../../context/authContext";
 
 import "./login.css";
+
+function getEmailVerificationSettings() {
+  return {
+    url: window.location.origin,
+    handleCodeInApp: false
+  };
+}
+
+function getPasswordResetSettings() {
+  return {
+    url: window.location.origin,
+    handleCodeInApp: false
+  };
+}
+
+function isValidPassword(password: string) {
+  return password.length >= 8 && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
+}
+
+// E-POSTVERIFISERING: Sender Firebase sin verifiseringslenke etter signup og ved ikke-verifisert login.
+async function sendVerificationEmail(user: User) {
+  await sendEmailVerification(user, getEmailVerificationSettings());
+}
 
 function Login() {
   const navigate = useNavigate();
@@ -37,19 +63,22 @@ function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [pendingGoogleUser, setPendingGoogleUser] = useState<User | null>(null);
   const [redirectChecked, setRedirectChecked] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const [fieldErrors, setFieldErrors] = useState({
     name: false,
     email: false,
-    password: false
+    password: false,
+    confirmPassword: false
   });
 
   useEffect(() => {
@@ -92,7 +121,7 @@ function Login() {
 }, [navigate]);
 
   useEffect(() => {
-    if (!redirectChecked || loading || pendingGoogleUser || !user) return;
+    if (!redirectChecked || loading || pendingGoogleUser || !user?.emailVerified) return;
     navigate("/dashboard", { replace: true });
   }, [loading, navigate, pendingGoogleUser, redirectChecked, user]);
 
@@ -100,16 +129,18 @@ function Login() {
     const errors = {
       name: isSignUp && !name.trim(),
       email: !email.trim(),
-      password: !password
+      password: !password,
+      confirmPassword: isSignUp && !confirmPassword
     };
 
     setFieldErrors(errors);
 
-    return !errors.name && !errors.email && !errors.password;
+    return !errors.name && !errors.email && !errors.password && !errors.confirmPassword;
   };
 
   const handleLogin = async () => {
     setError("");
+    setMessage("");
 
     if (!validateFields()) return;
 
@@ -131,8 +162,32 @@ function Login() {
         password
       );
 
+      await userCredential.user.reload();
+
+      // E-POSTVERIFISERING: Brukeren må verifisere e-post før tilgang til dashboard.
+      if (!userCredential.user.emailVerified) {
+        await sendVerificationEmail(userCredential.user);
+        await signOut(auth);
+        setError(
+          "E-posten er ikke verifisert enda. Firebase har akseptert en ny verifiseringsmail. Sjekk innboks og spam."
+        );
+        return;
+      }
+
       void syncUserAfterLogin(userCredential.user).catch((error) => {
         console.error("Kunne ikke oppdatere sist innlogget:", error);
+      });
+
+      // AKTIVITETSLOGG: Registrerer verifisert innlogging uten å blokkere login-flowen.
+      void logActivity({
+        type: "login",
+        level: "info",
+        title: "Ny innlogging",
+        description: `${userCredential.user.email ?? "En bruker"} logget inn.`,
+        actorId: userCredential.user.uid,
+        actorName: userCredential.user.email ?? ""
+      }).catch((error) => {
+        console.error("Kunne ikke logge innlogging:", error);
       });
 
       navigate("/dashboard");
@@ -141,6 +196,10 @@ function Login() {
 
       if (error.code === "auth/invalid-credential") {
         setError("Feil e-post eller passord.");
+      } else if (error.code === "auth/too-many-requests") {
+        setError("Firebase har stoppet flere e-poster midlertidig. Prøv igjen litt senere.");
+      } else if (error.code === "auth/unauthorized-continue-uri") {
+        setError("Domenet er ikke autorisert i Firebase Authentication. Legg til domenet under Authorized domains.");
       } else {
         setError("Kunne ikke logge inn.");
       }
@@ -163,13 +222,75 @@ function Login() {
   }
 };
 
+  // PASSORD RESET: Sender Firebase sin reset-lenke til e-postadressen i feltet.
+  const handlePasswordReset = async () => {
+    setError("");
+    setMessage("");
+
+    if (!email.trim()) {
+      setFieldErrors((current) => ({
+        ...current,
+        email: true
+      }));
+      setError("Skriv inn e-postadressen din først.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const existingProvider = await getLoginProviderByEmail(email);
+
+      if (existingProvider?.provider === "google") {
+        setError("Denne e-posten bruker Google-innlogging. Fortsett med Google i stedet.");
+        return;
+      }
+
+      await sendPasswordResetEmail(
+        auth,
+        email.trim(),
+        getPasswordResetSettings()
+      );
+
+      setMessage("Vi har sendt en e-post med lenke for å resette passordet ditt.");
+    } catch (error: any) {
+      console.error("Feil ved passord-reset:", error);
+
+      if (error.code === "auth/invalid-email") {
+        setError("Ugyldig e-postadresse.");
+      } else if (error.code === "auth/too-many-requests") {
+        setError("Firebase har stoppet flere e-poster midlertidig. Prøv igjen litt senere.");
+      } else if (error.code === "auth/unauthorized-continue-uri") {
+        setError("Domenet er ikke autorisert i Firebase Authentication. Legg til domenet under Authorized domains.");
+      } else {
+        setMessage("Hvis e-posten finnes hos oss, sendes det en reset-lenke.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignUp = async () => {
     setError("");
+    setMessage("");
 
     if (!validateFields()) return;
 
-    if (password.length < 6) {
-      setError("Passord må være minst 6 tegn.");
+    if (!isValidPassword(password)) {
+      setError("Passordet må ha minst 8 tegn, ett tall og ett spesialtegn.");
+      setFieldErrors((current) => ({
+        ...current,
+        password: true
+      }));
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passordene er ikke like.");
+      setFieldErrors((current) => ({
+        ...current,
+        confirmPassword: true
+      }));
       return;
     }
 
@@ -191,7 +312,7 @@ function Login() {
         password
       );
 
-      await sendEmailVerification(userCredential.user);
+      await userCredential.user.getIdToken(true);
 
       await createUserProfile(userCredential.user, {
         name,
@@ -199,7 +320,16 @@ function Login() {
         authProvider: "password"
       });
 
-      navigate("/dashboard");
+      // E-POSTVERIFISERING: Ny bruker må bekrefte e-post før første innlogging.
+      await sendVerificationEmail(userCredential.user);
+
+      await signOut(auth);
+      setIsSignUp(false);
+      setPassword("");
+      setConfirmPassword("");
+      setMessage(
+        "Brukeren er opprettet. Sjekk e-posten din og trykk på verifiseringslenken før du logger inn."
+      );
     } catch (error: any) {
       console.error("Feil ved registrering:", error);
 
@@ -207,6 +337,10 @@ function Login() {
         setError("E-posten er allerede registrert.");
       } else if (error.code === "auth/invalid-email") {
         setError("Ugyldig e-postadresse.");
+      } else if (error.code === "auth/too-many-requests") {
+        setError("Firebase har stoppet flere e-poster midlertidig. Prøv igjen litt senere.");
+      } else if (error.code === "auth/unauthorized-continue-uri") {
+        setError("Domenet er ikke autorisert i Firebase Authentication. Legg til domenet under Authorized domains.");
       } else if (error.code === "permission-denied") {
         setError("Brukeren ble opprettet, men profilen kunne ikke lagres.");
       } else {
@@ -226,7 +360,8 @@ function Login() {
       setFieldErrors({
         name: true,
         email: false,
-        password: false
+        password: false,
+        confirmPassword: false
       });
       return;
     }
@@ -283,12 +418,12 @@ function Login() {
           {(isSignUp || pendingGoogleUser) && (
             <>
               <div className="form-group">
-                <label>
-                  Navn
+                <div>
                   <span style={{ color: fieldErrors.name ? "red" : "#ccc" }}>
                     *
                   </span>
-                </label>
+                  <label> Navn </label>
+                </div>
 
                 <input
                   type="text"
@@ -326,16 +461,17 @@ function Login() {
           {!pendingGoogleUser && (
             <>
               <div className="form-group">
-                <label>
-                  E-post
+                <div>
                   <span style={{ color: fieldErrors.email ? "red" : "#ccc" }}>
                     *
                   </span>
-                </label>
+                  <label> E-post </label>
+                </div>
 
                 <input
                   type="email"
                   placeholder="epost@firma.no"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -354,18 +490,19 @@ function Login() {
               </div>
 
               <div className="form-group">
-                <label>
-                  Passord
+                <div>
                   <span style={{ color: fieldErrors.password ? "red" : "#ccc" }}>
                     *
                   </span>
-                </label>
+                  <label> Passord </label>
+                </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div className="password-row">
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="********"
+                    placeholder="Skriv inn ett passord"
                     value={password}
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
                     onChange={(e) => {
                       setPassword(e.target.value);
 
@@ -377,7 +514,6 @@ function Login() {
                       }
                     }}
                     style={{
-                      flex: 1,
                       borderColor: fieldErrors.password ? "red" : "",
                       textTransform: "none"
                     }}
@@ -386,14 +522,7 @@ function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: "18px",
-                      width: "auto",
-                      color: "#64748b"
-                    }}
+                    className="password-toggle-button"
                     aria-label={showPassword ? "Skjul passord" : "Vis passord"}
                   >
                     {showPassword
@@ -401,11 +530,63 @@ function Login() {
                       : FaRegEyeSlash({ className: "icon" })}
                   </button>
                 </div>
+
+                {isSignUp && (
+                  <p className="password-requirements">
+                    Passordet må ha minst 8 tegn, ett tall og ett spesialtegn.
+                  </p>
+                )}
+
+                {!isSignUp && (
+                  <button
+                    type="button"
+                    className="password-reset-button"
+                    onClick={handlePasswordReset}
+                    disabled={isLoading}
+                  >
+                    Glemt passord?
+                  </button>
+                )}
               </div>
+
+              {isSignUp && (
+                <div className="form-group">
+                  <div>
+                    <span style={{ color: fieldErrors.confirmPassword ? "red" : "#ccc" }}>
+                      *
+                    </span>
+                    <label> Gjenta passord </label>
+                  </div>
+
+                  <div className="password-row">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Skriv inn ett passord"
+                      value={confirmPassword}
+                      autoComplete="new-password"
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+
+                        if (fieldErrors.confirmPassword && e.target.value) {
+                          setFieldErrors({
+                            ...fieldErrors,
+                            confirmPassword: false
+                          });
+                        }
+                      }}
+                      style={{
+                        borderColor: fieldErrors.confirmPassword ? "red" : "",
+                        textTransform: "none"
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {error && <p style={{ color: "red" }}>{error}</p>}
+          {message && <p style={{ color: "#0f766e" }}>{message}</p>}
 
           <button type="submit" disabled={isLoading}>
             {isLoading
@@ -451,8 +632,11 @@ function Login() {
                     setFieldErrors({
                       name: false,
                       email: false,
-                      password: false
+                      password: false,
+                      confirmPassword: false
                     });
+                    setPassword("");
+                    setConfirmPassword("");
                   }}
                   style={{
                     background: "none",

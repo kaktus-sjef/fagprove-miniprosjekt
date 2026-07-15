@@ -63,6 +63,65 @@
     border-color:#0F766E;
 }
 
+.password-row {
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.password-row input {
+    flex:1;
+}
+
+.password-toggle-button {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+    padding:0;
+    border:none;
+    background:transparent;
+    color:#64748b;
+    font-size:18px;
+}
+
+.password-toggle-button:hover {
+    background:transparent;
+    color:#0F766E;
+}
+
+.password-requirements {
+    margin:8px 0 0 !important;
+    color:#6B7280;
+    font-size:13px;
+    line-height:1.4;
+}
+
+.password-reset-button {
+    width:auto;
+    margin-top:8px;
+    padding:0;
+    border:none;
+    background:transparent;
+    color:#0F766E;
+    font-size:14px;
+    font-weight:600;
+    text-align:left;
+    text-decoration:underline;
+}
+
+.password-reset-button:hover {
+    background:transparent;
+    color:#115E59;
+}
+
+.password-reset-button:disabled {
+    cursor:not-allowed;
+    opacity:0.65;
+}
+
 button{
     width:100%;
     padding:14px;

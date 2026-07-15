@@ -1,30 +1,52 @@
+import { useEffect, useState } from "react";
+
 import Header from "../../components/header/header";
 import Sidebar from "../../components/sidebar/sidebar";
+import {
+  ActivityLogEntry,
+  getRecentActivities
+} from "../../services/activityLogService";
 
-import "../adminShared/adminPages.css";
+import "./activityLog.css";
 
-const activities = [
-  {
-    title: "Ny innlogging",
-    description: "En bruker logget inn i administrasjonssystemet.",
-    time: "I dag, 09:15",
-    type: "success"
-  },
-  {
-    title: "Brukerprofil oppdatert",
-    description: "Sist pålogget og verifiseringsstatus ble synkronisert.",
-    time: "I dag, 08:47",
-    type: "info"
-  },
-  {
-    title: "Venter på rolle",
-    description: "En ny bruker mangler rolle før full tilgang kan gis.",
-    time: "I går, 16:22",
-    type: "warning"
+function formatDate(dateValue: any) {
+  if (!dateValue) return "Nettopp";
+
+  if (dateValue.toDate) {
+    return dateValue.toDate().toLocaleDateString("no-NO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
   }
-];
+
+  return "Nettopp";
+}
 
 function ActivityLog() {
+  const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        setActivities(await getRecentActivities());
+      } catch (error) {
+        console.error("Kunne ikke hente aktivitetslogg:", error);
+        setError("Kunne ikke hente aktivitetsloggen.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivities();
+  }, []);
+
   return (
     <main className="admin-page">
       <Sidebar />
@@ -37,25 +59,33 @@ function ActivityLog() {
             <div className="admin-panel-header">
               <div>
                 <h2>Aktivitetslogg</h2>
-                <p>Siste hendelser i systemet.</p>
+                <p>Siste viktige hendelser i systemet.</p>
               </div>
             </div>
 
-            <div className="admin-list">
-              {activities.map((activity) => (
-                <article key={`${activity.title}-${activity.time}`} className="admin-list-item">
-                  <div>
-                    <strong>{activity.title}</strong>
-                    <p>{activity.description}</p>
-                  </div>
+            {error && <p className="table-error">{error}</p>}
 
-                  <div>
-                    <span className={`admin-badge ${activity.type === "success" ? "success" : activity.type === "warning" ? "warning" : ""}`}>
-                      {activity.time}
-                    </span>
-                  </div>
-                </article>
-              ))}
+            <div className="admin-list">
+              {loading ? (
+                <p className="empty-list-state">Henter aktivitetslogg...</p>
+              ) : activities.length === 0 ? (
+                <p className="empty-list-state">Ingen hendelser enda.</p>
+              ) : (
+                activities.map((activity) => (
+                  <article key={activity.id} className="admin-list-item">
+                    <div>
+                      <strong>{activity.title}</strong>
+                      <p>{activity.description}</p>
+                    </div>
+
+                    <div>
+                      <span className={`admin-badge ${activity.level}`}>
+                        {formatDate(activity.createdAt)}
+                      </span>
+                    </div>
+                  </article>
+                ))
+              )}
             </div>
           </section>
         </div>

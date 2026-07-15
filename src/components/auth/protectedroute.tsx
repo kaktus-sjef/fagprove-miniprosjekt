@@ -11,7 +11,7 @@ function ProtectedRoute({
   const location = useLocation();
   const currentUser = user ?? auth.currentUser;
 
-  if (!currentUser) {
+  if (!currentUser || !currentUser.emailVerified) {
     return (
       <Navigate
         to="/"

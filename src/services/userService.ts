@@ -8,10 +8,12 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 
 import { db } from "../firebase/firebase";
+import { logActivity } from "./activityLogService";
 
 export type LoginProvider = "password" | "google";
 
@@ -117,6 +119,20 @@ export async function createUserProfile(
 
   await setDoc(userRef, profile);
   await saveLoginProvider(user, input.authProvider);
+
+  // AKTIVITETSLOGG + ROLLE-GODKJENNING: Ny signup legges inn som "waiting" og varsles.
+  void logActivity({
+    type: "role_waiting",
+    level: "warning",
+    title: "Venter på rolle",
+    description: `${profile.name} har opprettet bruker og venter på rolle-godkjenning.`,
+    actorId: user.uid,
+    actorName: profile.name,
+    targetId: user.uid,
+    targetName: profile.name
+  }).catch((error) => {
+    console.error("Kunne ikke logge rolle-venting:", error);
+  });
 }
 
 export async function createManagedUserProfile(input: ManageUserInput) {
@@ -138,6 +154,18 @@ export async function createManagedUserProfile(input: ManageUserInput) {
   };
 
   await setDoc(userRef, profile);
+
+  // AKTIVITETSLOGG: Admin har opprettet en ny brukerprofil manuelt.
+  void logActivity({
+    type: profile.role === "waiting" ? "role_waiting" : "user_created",
+    level: profile.role === "waiting" ? "warning" : "success",
+    title: profile.role === "waiting" ? "Venter på rolle" : "Ny bruker opprettet",
+    description: `${profile.name} ble opprettet${profile.role === "waiting" ? " og venter på rolle-godkjenning" : ""}.`,
+    targetId: userRef.id,
+    targetName: profile.name
+  }).catch((error) => {
+    console.error("Kunne ikke logge brukeropprettelse:", error);
+  });
 }
 
 export async function updateManagedUserProfile(
@@ -175,6 +203,14 @@ export async function syncUserAfterLogin(user: User) {
 export async function getAllUsers() {
   const usersRef = collection(db, "users");
   const usersQuery = query(usersRef);
+  const snapshot = await getDocs(usersQuery);
+
+  return snapshot.docs.map((doc) => doc.data() as UserProfile);
+}
+
+export async function getWaitingRoleUsers() {
+  const usersRef = collection(db, "users");
+  const usersQuery = query(usersRef, where("role", "==", "waiting"));
   const snapshot = await getDocs(usersQuery);
 
   return snapshot.docs.map((doc) => doc.data() as UserProfile);

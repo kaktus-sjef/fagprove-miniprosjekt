@@ -1,7 +1,7 @@
 import Header from "../../components/header/header";
 import Sidebar from "../../components/sidebar/sidebar";
 
-import "../adminShared/adminPages.css";
+import "./settings.css";
 
 function Settings() {
   return (

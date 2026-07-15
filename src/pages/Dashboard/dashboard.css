@@ -67,9 +67,49 @@
   flex: 0 0 auto;
   width: 50px;
   height: 50px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid transparent;
   border-radius: 50%;
   background: #f8fafc;
+}
+
+.icon-box .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.stat-icon-total {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.stat-icon-active {
+  background: #bbf7d0;
+  color: #16a34a;
+}
+
+.stat-icon-inactive {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.analytics-change.change-positive,
+.analytics-change.change-positive p {
+  color: #16a34a;
+}
+
+.analytics-change.change-negative,
+.analytics-change.change-negative p {
+  color: #dc2626;
+}
+
+.analytics-change.change-neutral,
+.analytics-change.change-neutral p {
+  color: #d97706;
+}
+
+.analytics-change .icon {
+  width: 14px;
+  height: 14px;
 }
 
 .dashboard-content-section {
@@ -184,7 +224,7 @@
   border-bottom: 1px solid #eef2f7;
   color: #334155;
   font-size: 14px;
-  vertical-align: middle;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -271,6 +311,11 @@
   margin: 0 0 16px;
   color: #b91c1c;
   font-weight: 600;
+}
+.missing-value-icon {
+  color: #b91c1c;
+  height: 16px;
+  width: 16px;
 }
 
 .empty-table-cell {
