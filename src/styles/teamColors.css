@@ -1,0 +1,83 @@
+.team-theme-red {
+  --team-avatar-bg: #fee2e2;
+  --team-avatar-color: #f14c75;
+  --team-pattern-color: rgba(147, 73, 91, 0.1);
+}
+
+.team-theme-purple {
+  --team-avatar-bg: #ede9fe;
+  --team-avatar-color: #6d28d9;
+  --team-pattern-color: rgba(109, 40, 217, 0.1);
+}
+
+.team-theme-green {
+  --team-avatar-bg: #dcfce7;
+  --team-avatar-color: #15803d;
+  --team-pattern-color: rgba(21, 128, 61, 0.1);
+}
+
+.team-theme-blue {
+  --team-avatar-bg: #dbeafe;
+  --team-avatar-color: #1d4ed8;
+  --team-pattern-color: rgba(29, 78, 216, 0.1);
+}
+
+.team-theme-orange {
+  --team-avatar-bg: #ffedd5;
+  --team-avatar-color: #c2410c;
+  --team-pattern-color: rgba(194, 65, 12, 0.1);
+}
+
+.team-theme-pink {
+  --team-avatar-bg: #fce7f3;
+  --team-avatar-color: #be185d;
+  --team-pattern-color: rgba(190, 24, 93, 0.1);
+}
+
+.team-theme-teal {
+  --team-avatar-bg: #ccfbf1;
+  --team-avatar-color: #0f766e;
+  --team-pattern-color: rgba(15, 118, 110, 0.1);
+}
+
+.user-avatar-red {
+  --user-avatar-bg: #e94f73;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.16);
+  background: var(--user-avatar-bg);
+}
+
+.user-avatar-purple {
+  --user-avatar-bg: #6f35c8;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.15);
+  background: var(--user-avatar-bg);
+}
+
+.user-avatar-green {
+  --user-avatar-bg: #197a3e;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.15);
+  background: var(--user-avatar-bg);
+}
+
+.user-avatar-blue {
+  --user-avatar-bg: #2f63c7;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.16);
+  background: var(--user-avatar-bg);
+}
+
+.user-avatar-orange {
+  --user-avatar-bg: #c56724;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.16);
+  background: var(--user-avatar-bg);
+}
+
+.user-avatar-pink {
+  --user-avatar-bg: #bd2f73;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.16);
+  background: var(--user-avatar-bg);
+}
+
+.user-avatar-teal {
+  --user-avatar-bg: #117c73;
+  --user-avatar-pattern: rgba(255, 255, 255, 0.15);
+  background: var(--user-avatar-bg);
+}

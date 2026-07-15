@@ -14,6 +14,8 @@ import { db } from "../firebase/firebase";
 import { logActivity } from "./activityLogService";
 
 export type TeamStatus = "active" | "inactive";
+export type TeamColor = "red" | "purple" | "green" | "blue" | "orange" | "pink" | "teal";
+export type TeamIcon = "admin" | "security" | "accounting" | "it" | "customerservice" | "sales" | "team";
 
 export type TeamProfile = {
   id: string;
@@ -21,6 +23,8 @@ export type TeamProfile = {
   description: string;
   lead: string;
   status: TeamStatus;
+  color?: TeamColor;
+  icon?: TeamIcon;
   avatarUrl?: string;
   createdAt: any;
   updatedAt: any;
@@ -31,6 +35,8 @@ export type TeamInput = {
   description?: string;
   lead?: string;
   status: TeamStatus;
+  color?: TeamColor;
+  icon?: TeamIcon;
   avatarUrl?: string;
 };
 
@@ -54,6 +60,8 @@ export async function createTeam(input: TeamInput) {
     description: input.description?.trim() || "",
     lead: input.lead?.trim() || "",
     status: input.status,
+    color: input.color || "teal",
+    icon: input.icon || "team",
     avatarUrl: input.avatarUrl?.trim() || "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -80,6 +88,8 @@ export async function updateTeam(teamId: string, input: TeamInput) {
     description: input.description?.trim() || "",
     lead: input.lead?.trim() || "",
     status: input.status,
+    color: input.color || "teal",
+    icon: input.icon || "team",
     avatarUrl: input.avatarUrl?.trim() || "",
     updatedAt: serverTimestamp()
   });

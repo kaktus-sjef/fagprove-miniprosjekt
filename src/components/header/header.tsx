@@ -9,6 +9,7 @@ import { GoQuestion } from "react-icons/go";
 
 import { auth } from "../../firebase/firebase";
 import { useAuth } from "../../context/authContext";
+import { getInitials } from "../../utils/formatters";
 import {
   ActivityLogEntry,
   getRecentActivities,
@@ -19,16 +20,6 @@ import SearchBar from "../searchBar/searchBar";
 
 interface HeaderProps {
   title: string;
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(" ");
-
-  if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase();
-  }
-
-  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
 }
 
 function Header({ title }: HeaderProps) {
@@ -92,11 +83,6 @@ function Header({ title }: HeaderProps) {
       <div className="header-right">
         <SearchBar
           placeholder="Søk..."
-          options={[
-            { value: "all", label: "Alt" },
-            { value: "users", label: "Brukere" },
-            { value: "teams", label: "Team" }
-          ]}
         />
 
         <div className="notification-menu">

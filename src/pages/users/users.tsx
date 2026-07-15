@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { FaEllipsisH, FaMinus, FaPen, FaPlus, FaTimes } from "react-icons/fa";
+import { FaMinus, FaPlus, FaTimes } from "react-icons/fa";
 
 import Header from "../../components/header/header";
 import Sidebar from "../../components/sidebar/sidebar";
 import SearchBar from "../../components/searchBar/searchBar";
+import FilterSelect from "../../components/filterSelect/filterSelect";
+import UserTable from "../../components/userTable/userTable";
 import {
   createManagedUserProfile,
   getAllUsers,
@@ -14,6 +16,18 @@ import {
   UserRole
 } from "../../services/userService";
 import { logActivity } from "../../services/activityLogService";
+import {
+  getAllTeams,
+  TeamProfile
+} from "../../services/teamService";
+import {
+  formatBoolean,
+  formatRole,
+  formatUserStatus
+} from "../../utils/formatters";
+import {
+  getTeamLabel
+} from "../../utils/teamDisplay";
 
 import "./users.css";
 import "../Dashboard/dashboard.css";
@@ -28,19 +42,6 @@ const emptyForm: UserFormState = {
   role: "user",
   status: "active"
 };
-
-function getInitials(name: string) {
-  const trimmedName = name.trim();
-  const parts = trimmedName.split(" ");
-
-  if (!trimmedName) return "?";
-
-  if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase();
-  }
-
-  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
-}
 
 function formatDate(dateValue: any) {
   if (!dateValue) return FaMinus({ className: "missing-value-icon " });
@@ -58,48 +59,6 @@ function formatDate(dateValue: any) {
   return FaMinus({ className: "missing-value-icon " });
 }
 
-function formatRole(role: string) {
-  switch (role) {
-    case "admin":
-      return "Administrator";
-    case "user":
-      return "Bruker";
-    case "tester":
-      return "Tester";
-    case "waiting":
-      return "Venter";
-    default:
-      return role;
-  }
-}
-
-function formatStatus(status: string) {
-  return status === "active" ? "Aktiv" : "Inaktiv";
-}
-
-function formatBoolean(value: boolean) {
-  return value ? "Ja" : "Nei";
-}
-
-function formatTeam(team?: string | null) {
-  switch (team) {
-    case "admin":
-      return "Administrasjon";
-    case "security":
-      return "Sikkerhet";
-    case "accounting":
-      return "Økonomi";
-    case "it":
-      return "IT";
-    case "customerservice":
-      return "Kundeservice";
-    case "sales":
-      return "Salg";
-    default:
-      return team || "Ikke satt";
-  }
-}
-
 function getFormFromUser(user: UserProfile): UserFormState {
   return {
     name: user.name ?? "",
@@ -113,8 +72,8 @@ function getFormFromUser(user: UserProfile): UserFormState {
 
 function Users() {
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [teams, setTeams] = useState<TeamProfile[]>([]);
   const [search, setSearch] = useState("");
-  const [searchField, setSearchField] = useState("all");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
@@ -124,13 +83,18 @@ function Users() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState<UserFormState>(emptyForm);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
-  const [openActionsFor, setOpenActionsFor] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError("");
-      setUsers(await getAllUsers());
+      const [userData, teamData] = await Promise.all([
+        getAllUsers(),
+        getAllTeams()
+      ]);
+
+      setUsers(userData);
+      setTeams(teamData);
     } catch (error) {
       console.error("Kunne ikke hente brukere:", error);
       setError("Kunne ikke hente brukere.");
@@ -143,45 +107,37 @@ function Users() {
     fetchUsers();
   }, []);
 
+
+
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
       const searchValue = search.trim().toLowerCase();
 
-      const searchableValues: Record<string, string> = {
-        all: [
-          user.name,
-          user.email,
-          user.phone,
-          formatTeam(user.team),
-          formatRole(user.role),
-          formatStatus(user.status),
-          formatBoolean(user.emailVerified),
-          formatBoolean(user.roleVerified),
-          formatDate(user.createdAt),
-          formatDate(user.lastLogin)
-        ].join(" "),
-        name: user.name ?? "",
-        email: user.email ?? "",
-        phone: user.phone ?? "",
-        team: formatTeam(user.team),
-        role: formatRole(user.role),
-        status: formatStatus(user.status)
-      };
-
-      const matchesSearch =
-        !searchValue ||
-        searchableValues[searchField]?.toLowerCase().includes(searchValue);
-
       const matchesRole = !roleFilter || user.role === roleFilter;
       const matchesStatus = !statusFilter || user.status === statusFilter;
 
-      return matchesSearch && matchesRole && matchesStatus;
+      const searchableText = [
+        user.name,
+        user.email,
+        user.phone,
+        getTeamLabel(user.team, teams),
+        formatRole(user.role),
+        formatUserStatus(user.status),
+        formatBoolean(user.emailVerified),
+        formatBoolean(user.roleVerified),
+        formatDate(user.createdAt),
+        formatDate(user.lastLogin)
+      ].join(" ");
+
+      const matchesSearch =
+        !searchValue || searchableText.toLowerCase().includes(searchValue);
+
+      return matchesRole && matchesStatus && matchesSearch;
     });
-  }, [users, search, searchField, roleFilter, statusFilter]);
+  }, [users, teams, search, roleFilter, statusFilter]);
 
   const openCreateModal = () => {
     setEditingUser(null);
-    setOpenActionsFor(null);
     setForm(emptyForm);
     setFormError("");
     setIsModalOpen(true);
@@ -189,7 +145,6 @@ function Users() {
 
   const openEditModal = (user: UserProfile) => {
     setEditingUser(user);
-    setOpenActionsFor(null);
     setForm(getFormFromUser(user));
     setFormError("");
     setIsModalOpen(true);
@@ -272,7 +227,6 @@ function Users() {
             <div className="admin-panel-header">
               <div>
                 <h2>Brukere</h2>
-                <p>Viser {filteredUsers.length} av {users.length} brukere</p>
               </div>
             </div>
 
@@ -282,40 +236,19 @@ function Users() {
                 placeholder="Søk etter bruker..."
                 value={search}
                 onChange={setSearch}
-                selectedOption={searchField}
-                onOptionChange={setSearchField}
-                options={[
-                  { value: "all", label: "Alle felt" },
-                  { value: "name", label: "Navn" },
-                  { value: "email", label: "E-post" },
-                  { value: "phone", label: "Telefon" },
-                  { value: "team", label: "Team" },
-                  { value: "role", label: "Rolle" },
-                  { value: "status", label: "Status" }
-                ]}
               />
 
-              <select
-                className="admin-select"
+              <FilterSelect
+                type="role"
                 value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-              >
-                <option value="">Alle roller</option>
-                <option value="admin">Administrator</option>
-                <option value="user">Bruker</option>
-                <option value="tester">Tester</option>
-                <option value="waiting">Venter</option>
-              </select>
+                onChange={setRoleFilter}
+              />
 
-              <select
-                className="admin-select"
+              <FilterSelect
+                type="status"
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option value="">Alle statuser</option>
-                <option value="active">Aktive</option>
-                <option value="inactive">Inaktive</option>
-              </select>
+                onChange={setStatusFilter}
+              />
 
               <button
                 type="button"
@@ -328,107 +261,26 @@ function Users() {
             </div>
 
             {error && <p className="table-error">{error}</p>}
-
-            <div className="dashboard-table users-full-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Navn</th>
-                    <th>E-post</th>
-                    <th>E-post verifisert</th>
-                    <th>Telefon</th>
-                    <th>Team</th>
-                    <th>Rolle</th>
-                    <th>Rolle verifisert</th>
-                    <th>Status</th>
-                    <th>Opprettet</th>
-                    <th>Sist pålogget</th>
-                    <th>Handlinger</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={11} className="empty-table-cell">
-                        Henter brukere...
-                      </td>
-                    </tr>
-                  ) : filteredUsers.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="empty-table-cell">
-                        Ingen brukere funnet.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredUsers.map((user) => (
-                      <tr key={user.uid}>
-                        <td>
-                          <div className="user-cell">
-                            <div className="table-avatar">
-                              {getInitials(user.name)}
-                            </div>
-
-                            <span>{user.name || "Ukjent bruker"}</span>
-                          </div>
-                        </td>
-                        <td>{user.email || FaMinus({ className: "missing-value-icon " })}</td>
-                        <td>
-                          <span className={`status-badge ${user.emailVerified ? "active" : "inactive"}`}>
-                            {formatBoolean(user.emailVerified)}
-                          </span>
-                        </td>
-                        <td>{user.phone || FaMinus({ className: "missing-value-icon " })}</td>
-                        <td>{formatTeam(user.team)}</td>
-                        <td>
-                          <span className={`role-badge ${user.role}`}>
-                            {formatRole(user.role)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge ${user.roleVerified ? "active" : "inactive"}`}>
-                            {formatBoolean(user.roleVerified)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge ${user.status}`}>
-                            {formatStatus(user.status)}
-                          </span>
-                        </td>
-                        <td>{formatDate(user.createdAt)}</td>
-                        <td>{formatDate(user.lastLogin)}</td>
-                        <td>
-                          <div className="actions-menu">
-                            <button
-                              type="button"
-                              className="action-button"
-                              onClick={() => setOpenActionsFor(openActionsFor === user.uid ? null : user.uid)}
-                              aria-expanded={openActionsFor === user.uid}
-                              aria-label={`Handlinger for ${user.name || user.email}`}
-                            >
-                              {FaEllipsisH({ className: "icon" })}
-                            </button>
-
-                            {openActionsFor === user.uid && (
-                              <div className="actions-dropdown">
-                                <button
-                                  type="button"
-                                  className="actions-dropdown-item"
-                                  onClick={() => openEditModal(user)}
-                                >
-                                  {FaPen({ className: "icon" })}
-                                  Rediger
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <UserTable
+              users={filteredUsers}
+              teams={teams}
+              loading={loading}
+              onEditUser={openEditModal}
+              className="users-full-table"
+              columns={[
+                "name",
+                "email",
+                "emailVerified",
+                "phone",
+                "team",
+                "role",
+                "roleVerified",
+                "status",
+                "createdAt",
+                "lastLogin",
+                "actions"
+              ]}
+            />
           </section>
         </div>
       </section>
@@ -503,12 +355,14 @@ function Users() {
                   onChange={(event) => updateFormField("team", event.target.value)}
                 >
                   <option value="">Ikke satt</option>
-                  <option value="admin">Administrasjon</option>
-                  <option value="security">Sikkerhet</option>
-                  <option value="accounting">Økonomi</option>
-                  <option value="it">IT</option>
-                  <option value="customerservice">Kundeservice</option>
-                  <option value="sales">Salg</option>
+                  {form.team && !teams.some((team) => team.id === form.team || team.name === form.team) && (
+                    <option value={form.team}>{getTeamLabel(form.team, teams)}</option>
+                  )}
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -534,7 +388,7 @@ function Users() {
                   onChange={(event) => updateFormField("status", event.target.value)}
                 >
                   <option value="active">Aktiv</option>
-                  <option value="inactive">Inaktiv</option>
+                  <option value="inactive">Deaktivert</option>
                 </select>
               </div>
 
@@ -567,3 +421,6 @@ function Users() {
 }
 
 export default Users;
+
+
+
