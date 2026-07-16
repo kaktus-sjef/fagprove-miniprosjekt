@@ -377,7 +377,7 @@ function Team() {
                 className="primary-action-button"
                 onClick={openCreateModal}
               >
-                {FaPlus({ className: "icon" })}
+                {FaPlus({ className: "icon", style: { color: "white" } })}
                 Nytt team
               </button>
             </div>

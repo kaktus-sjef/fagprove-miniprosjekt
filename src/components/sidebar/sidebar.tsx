@@ -12,6 +12,7 @@ function Sidebar() {
         <aside className="sidebar">
 
             <div className="sidebar-header">
+                <img src="/AKP.png" alt="Administrasjon" />
                 <h2>Administrasjon</h2>
             </div>
 

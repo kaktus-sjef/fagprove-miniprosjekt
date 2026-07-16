@@ -1,0 +1,140 @@
+@media (max-width: 1100px) {
+  .dashboard-content,
+  .admin-page {
+    margin-left: 148px !important;
+  }
+
+  .dashboard-analytics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    padding: 18px 18px 0 !important;
+  }
+
+  .dashboard-content-section,
+  .admin-body {
+    width: calc(100% - 36px) !important;
+    margin: 18px !important;
+  }
+
+  .header {
+    min-height: 70px;
+    height: auto !important;
+    padding: 12px 18px !important;
+    flex-wrap: wrap;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .dashboard-search,
+  .dashboard-search .search-box {
+    width: min(100%, 320px) !important;
+  }
+
+  .dashboard-filter,
+  .admin-toolbar {
+    align-items: stretch;
+  }
+
+  .dashboard-table,
+  .admin-table,
+  .data-table {
+    overflow-x: auto;
+  }
+
+  .dashboard-table table,
+  .admin-table table {
+    min-width: 760px;
+  }
+
+  .users-full-table table {
+    min-width: 980px;
+  }
+
+  .team-detail-panel {
+    grid-template-columns: 1fr !important;
+  }
+
+  .team-detail-summary {
+    border-right: 0 !important;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}
+
+@media (max-width: 720px) {
+  .dashboard-content,
+  .admin-page {
+    margin-left: 112px !important;
+  }
+
+  .dashboard-analytics {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 12px 12px 0 !important;
+  }
+
+  .analytics-card {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .icon-box {
+    width: 44px;
+    height: 44px;
+  }
+
+  .dashboard-content-section,
+  .admin-body {
+    width: calc(100% - 24px) !important;
+    margin: 12px !important;
+  }
+
+  .admin-panel,
+  .dashboard-content-section {
+    padding: 16px !important;
+  }
+
+  .admin-panel-header,
+  .users-table-header {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+
+  .dashboard-filter,
+  .admin-toolbar,
+  .search-control,
+  .filter-select,
+  .primary-action-button {
+    width: 100% !important;
+  }
+
+  .dashboard-search,
+  .dashboard-search .search-box,
+  .search-box {
+    width: 100% !important;
+  }
+
+  .header-left h1 {
+    font-size: 1.35rem;
+  }
+
+  .header-right {
+    width: 100%;
+  }
+
+  .notification-dropdown {
+    left: 0;
+    right: auto;
+    width: min(320px, calc(100vw - 136px));
+  }
+
+  .user-menu select {
+    max-width: 160px;
+  }
+
+  .data-table-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
