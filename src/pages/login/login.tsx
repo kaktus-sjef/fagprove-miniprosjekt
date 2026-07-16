@@ -88,6 +88,7 @@ function Login() {
   const handleRedirectResult = async () => {
     try {
 
+      // Google-login kommer tilbake hit etter redirect. Resultatet må derfor sjekkes ved lasting.
       const result = await getRedirectResult(auth);
       const currentUser = result?.user;
 
@@ -97,6 +98,7 @@ function Login() {
 
       const existingProfile = await getUserProfile(currentUser.uid);
 
+      // Finnes profilen allerede, er brukeren klar og kan sendes videre.
       if (existingProfile) {
         void syncUserAfterLogin(currentUser).catch((error) => {
           console.error("Kunne ikke oppdatere sist innlogget:", error);
@@ -105,6 +107,7 @@ function Login() {
         return;
       }
 
+      // Første Google-login mangler lokal profil, så brukeren må fylle inn navn/telefon.
       setPendingGoogleUser(currentUser);
       setName(currentUser.displayName ?? "");
       setEmail(currentUser.email ?? "");
@@ -149,6 +152,7 @@ function Login() {
 
       const existingProvider = await getLoginProviderByEmail(email);
 
+      // Hindrer at en Google-konto forsøkes logget inn med passord.
       if (existingProvider?.provider === "google") {
         setError(
           "Denne e-posten er registrert med Google. Fortsett med Google for å logge inn."
@@ -169,7 +173,7 @@ function Login() {
         await sendVerificationEmail(userCredential.user);
         await signOut(auth);
         setError(
-          "E-posten er ikke verifisert enda. Firebase har akseptert en ny verifiseringsmail. Sjekk innboks og spam."
+          "E-posten er ikke verifisert enda. En ny verifiseringsmail er sendt. Sjekk innboks og spam / søppelpost."
         );
         return;
       }
@@ -241,6 +245,7 @@ function Login() {
 
       const existingProvider = await getLoginProviderByEmail(email);
 
+      // Passord-reset gir ikke mening for kontoer som kun bruker Google.
       if (existingProvider?.provider === "google") {
         setError("Denne e-posten bruker Google-innlogging. Fortsett med Google i stedet.");
         return;
@@ -299,6 +304,7 @@ function Login() {
 
       const existingProvider = await getLoginProviderByEmail(email);
 
+      // Samme e-post skal ikke kunne opprettes både som Google- og passordkonto.
       if (existingProvider?.provider === "google") {
         setError(
           "Denne e-posten er allerede registrert med Google. Fortsett med Google for å logge inn."
@@ -314,6 +320,7 @@ function Login() {
 
       await userCredential.user.getIdToken(true);
 
+      // Firestore-profilen lages etter Auth-brukeren, slik at uid blir lik Firebase uid.
       await createUserProfile(userCredential.user, {
         name,
         phone,

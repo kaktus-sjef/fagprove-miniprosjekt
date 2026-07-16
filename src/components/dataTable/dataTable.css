@@ -1,3 +1,8 @@
+.data-table:focus {
+  outline: 3px solid rgba(15, 118, 110, 0.22);
+  outline-offset: 3px;
+}
+
 .data-table-footer {
   display: flex;
   align-items: center;
@@ -11,6 +16,15 @@
 
 .data-table-footer p {
   margin: 0;
+}
+
+.data-table tbody tr[tabindex="0"] {
+  cursor: pointer;
+}
+
+.data-table tbody tr[tabindex="0"]:focus {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: -3px;
 }
 
 .data-table-pagination {

@@ -43,6 +43,7 @@ export function AuthProvider({
   useEffect(() => {
     let isMounted = true;
 
+    // Firebase sier fra her hver gang brukeren logger inn, logger ut eller refreshes.
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setAuthError("");
 
@@ -58,12 +59,15 @@ export function AuthProvider({
       setLoading(false);
       setProfileLoading(true);
 
+      // Brukerprofilen ligger i Firestore og avgjør rolle/tilgang i appen.
       getUserProfile(currentUser.uid)
         .then((profile) => {
+          // Hindrer at et gammelt async-svar overskriver state etter logout/brukerbytte.
           if (!isMounted || auth.currentUser?.uid !== currentUser.uid) return;
           setUserProfile(profile);
         })
         .catch((error) => {
+          // Samme sikkerhet her: bare vis feilen hvis dette fortsatt er aktiv bruker.
           if (!isMounted || auth.currentUser?.uid !== currentUser.uid) return;
           console.error("Kunne ikke hente brukerprofil:", error);
           setUserProfile(null);

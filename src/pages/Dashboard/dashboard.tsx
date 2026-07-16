@@ -4,6 +4,7 @@ import Sidebar from "../../components/sidebar/sidebar";
 import Header from "../../components/header/header";
 import SearchBar from "../../components/searchBar/searchBar";
 import FilterSelect from "../../components/filterSelect/filterSelect";
+import StatCards, { StatCardOption } from "../../components/statCards/statCards";
 import UserTable from "../../components/userTable/userTable";
 
 import "./dashboard.css";
@@ -97,6 +98,41 @@ function Dashboard() {
   const totalUsers = users.length;
   const activeUsers = users.filter((user) => user.status === "active").length;
   const inactiveUsers = users.filter((user) => user.status === "inactive").length;
+  const userStats: StatCardOption[] = [
+    {
+      id: "total-users",
+      title: "Totale brukere",
+      value: totalUsers,
+      description: "Registrert totalt",
+      icon: FaUsers({ className: "icon" }),
+      trendIcon: FaMinus({ className: "icon" }),
+      variant: "total",
+      trend: "neutral",
+      ariaLabel: `Totale brukere ${totalUsers}. Registrert totalt ${totalUsers}.`
+    },
+    {
+      id: "active-users",
+      title: "Aktive brukere",
+      value: activeUsers,
+      description: "Aktive nå",
+      icon: FaUserCheck({ className: "icon" }),
+      trendIcon: FaLongArrowAltUp({ className: "icon" }),
+      variant: "active",
+      trend: "positive",
+      ariaLabel: `Aktive brukere ${activeUsers}. Aktive nå ${activeUsers}.`
+    },
+    {
+      id: "inactive-users",
+      title: "Deaktiverte brukere",
+      value: inactiveUsers,
+      description: "Deaktiverte nå",
+      icon: FaUserMinus({ className: "icon" }),
+      trendIcon: FaLongArrowAltDown({ className: "icon" }),
+      variant: "inactive",
+      trend: "negative",
+      ariaLabel: `Deaktiverte brukere ${inactiveUsers}. Deaktiverte nå ${inactiveUsers}.`
+    }
+  ];
 
   return (
     <main className="dashboard-content">
@@ -105,61 +141,7 @@ function Dashboard() {
       <section className="dashboard-section">
         <Header title="Oversikt" />
 
-        <section className="dashboard-analytics">
-          <div className="analytics-card stat-total">
-            <div className="icon-box stat-icon-total">
-              {FaUsers({ className: "icon" })}
-            </div>
-
-            <ul className="analytics-list">
-              <li>Totale brukere</li>
-              <li>
-                <h3>{totalUsers}</h3>
-              </li>
-              <li className="analytics-change change-neutral">
-                {FaMinus({ className: "icon" })}
-                {totalUsers}
-                <p>Registrert totalt</p>
-              </li>
-            </ul>
-          </div>
-
-          <div className="analytics-card stat-active">
-            <div className="icon-box stat-icon-active">
-              {FaUserCheck({ className: "icon" })}
-            </div>
-
-            <ul className="analytics-list">
-              <li>Aktive brukere</li>
-              <li>
-                <h3>{activeUsers}</h3>
-              </li>
-              <li className="analytics-change change-positive">
-                {FaLongArrowAltUp({ className: "icon" })}
-                {activeUsers}
-                <p>Aktive nå</p>
-              </li>
-            </ul>
-          </div>
-
-          <div className="analytics-card stat-inactive">
-            <div className="icon-box stat-icon-inactive">
-              {FaUserMinus({ className: "icon" })}
-            </div>
-
-            <ul className="analytics-list">
-              <li>Deaktiverte brukere</li>
-              <li>
-                <h3>{inactiveUsers}</h3>
-              </li>
-              <li className="analytics-change change-negative">
-                {FaLongArrowAltDown({ className: "icon" })}
-                {inactiveUsers}
-                <p>Deaktiverte nå</p>
-              </li>
-            </ul>
-          </div>
-        </section>
+        <StatCards ariaLabel="Brukerstatistikk" cards={userStats} />
 
         <section className="dashboard-content-section">
           <div className="users-table-header">

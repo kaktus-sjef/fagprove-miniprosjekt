@@ -14,6 +14,12 @@ interface FilterSelectProps {
   className?: string;
 }
 
+const filterLabels: Record<FilterType, string> = {
+  role: "Filtrer på rolle",
+  status: "Filtrer på status",
+  team: "Filtrer på team"
+};
+
 function getOptions(type: FilterType, teams: TeamProfile[] = []) {
   if (type === "role") {
     return [
@@ -50,6 +56,13 @@ function FilterSelect({
   className = ""
 }: FilterSelectProps) {
   const options = getOptions(type, teams);
+  const label = filterLabels[type];
+
+  const handleValueChange = (nextValue: string) => {
+    if (nextValue !== value) {
+      onChange(nextValue);
+    }
+  };
 
   return (
     <label className={`filter-select ${className}`.trim()}>
@@ -57,8 +70,9 @@ function FilterSelect({
 
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-label={options[0].label}
+        onChange={(event) => handleValueChange(event.target.value)}
+        onBlur={(event) => handleValueChange(event.target.value)}
+        aria-label={label}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

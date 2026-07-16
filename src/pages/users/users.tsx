@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { FaMinus, FaPlus, FaTimes } from "react-icons/fa";
+import { FaMinus, FaPlus } from "react-icons/fa";
 
 import Header from "../../components/header/header";
 import Sidebar from "../../components/sidebar/sidebar";
+import FormModal, { FormModalField } from "../../components/formModal/formModal";
 import SearchBar from "../../components/searchBar/searchBar";
 import FilterSelect from "../../components/filterSelect/filterSelect";
 import UserTable from "../../components/userTable/userTable";
@@ -12,8 +13,7 @@ import {
   getAllUsers,
   ManageUserInput,
   updateManagedUserProfile,
-  UserProfile,
-  UserRole
+  UserProfile
 } from "../../services/userService";
 import { logActivity } from "../../services/activityLogService";
 import {
@@ -215,6 +215,64 @@ function Users() {
     }
   };
 
+  const userModalFields: FormModalField<UserFormState>[] = [
+    {
+      name: "name",
+      id: "user-name",
+      label: "Navn *",
+      placeholder: "Ola Nordmann"
+    },
+    {
+      name: "email",
+      id: "user-email",
+      label: "E-post",
+      type: "email",
+      placeholder: "epost@firma.no"
+    },
+    {
+      name: "phone",
+      id: "user-phone",
+      label: "Telefon",
+      type: "tel",
+      placeholder: "Valgfritt"
+    },
+    {
+      name: "team",
+      id: "user-team",
+      label: "Team",
+      options: [
+        { value: "", label: "Ikke satt" },
+        ...(form.team && !teams.some((team) => team.id === form.team || team.name === form.team)
+          ? [{ value: form.team, label: getTeamLabel(form.team, teams) }]
+          : []),
+        ...teams.map((team) => ({
+          value: team.id,
+          label: team.name
+        }))
+      ]
+    },
+    {
+      name: "role",
+      id: "user-role",
+      label: "Rolle *",
+      options: [
+        { value: "admin", label: "Administrator" },
+        { value: "user", label: "Bruker" },
+        { value: "tester", label: "Tester" },
+        { value: "waiting", label: "Venter" }
+      ]
+    },
+    {
+      name: "status",
+      id: "user-status",
+      label: "Status",
+      options: [
+        { value: "active", label: "Aktiv" },
+        { value: "inactive", label: "Deaktivert" }
+      ]
+    }
+  ];
+
   return (
     <main className="admin-page">
       <Sidebar />
@@ -285,137 +343,22 @@ function Users() {
         </div>
       </section>
 
-      {isModalOpen && (
-        <div className="modal-backdrop" role="presentation">
-          <section
-            className="user-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="user-modal-title"
-          >
-            <div className="user-modal-header">
-              <div>
-                <h2 id="user-modal-title">
-                  {editingUser ? "Rediger bruker" : "Legg til bruker"}
-                </h2>
-                <p>
-                  {editingUser ? "Oppdater brukerprofilen." : "Opprett en ny brukerprofil."}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close-button"
-                onClick={closeModal}
-                aria-label="Lukk"
-              >
-                {FaTimes({ className: "icon" })}
-              </button>
-            </div>
-
-            <form className="user-form" onSubmit={handleSubmitUser}>
-              <div className="form-field">
-                <label htmlFor="user-name">Navn *</label>
-                <input
-                  id="user-name"
-                  type="text"
-                  value={form.name}
-                  onChange={(event) => updateFormField("name", event.target.value)}
-                  placeholder="Ola Nordmann"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="user-email">E-post</label>
-                <input
-                  id="user-email"
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => updateFormField("email", event.target.value)}
-                  placeholder="epost@firma.no"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="user-phone">Telefon</label>
-                <input
-                  id="user-phone"
-                  type="tel"
-                  value={form.phone}
-                  onChange={(event) => updateFormField("phone", event.target.value)}
-                  placeholder="Valgfritt"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="user-team">Team</label>
-                <select
-                  id="user-team"
-                  value={form.team}
-                  onChange={(event) => updateFormField("team", event.target.value)}
-                >
-                  <option value="">Ikke satt</option>
-                  {form.team && !teams.some((team) => team.id === form.team || team.name === form.team) && (
-                    <option value={form.team}>{getTeamLabel(form.team, teams)}</option>
-                  )}
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="user-role">Rolle *</label>
-                <select
-                  id="user-role"
-                  value={form.role}
-                  onChange={(event) => updateFormField("role", event.target.value as UserRole)}
-                >
-                  <option value="admin">Administrator</option>
-                  <option value="user">Bruker</option>
-                  <option value="tester">Tester</option>
-                  <option value="waiting">Venter</option>
-                </select>
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="user-status">Status</label>
-                <select
-                  id="user-status"
-                  value={form.status}
-                  onChange={(event) => updateFormField("status", event.target.value)}
-                >
-                  <option value="active">Aktiv</option>
-                  <option value="inactive">Deaktivert</option>
-                </select>
-              </div>
-
-              {formError && <p className="form-error">{formError}</p>}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="secondary-action-button"
-                  onClick={closeModal}
-                  disabled={saving}
-                >
-                  Avbryt
-                </button>
-
-                <button
-                  type="submit"
-                  className="primary-action-button"
-                  disabled={saving}
-                >
-                  {saving ? "Lagrer..." : editingUser ? "Lagre endringer" : "Legg til bruker"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
+      <FormModal
+        isOpen={isModalOpen}
+        title={editingUser ? "Rediger bruker" : "Legg til bruker"}
+        description={editingUser ? "Oppdater brukerprofilen." : "Opprett en ny brukerprofil."}
+        titleId="user-modal-title"
+        onClose={closeModal}
+        className="user-modal"
+        onSubmit={handleSubmitUser}
+        values={form}
+        fields={userModalFields}
+        onFieldChange={updateFormField}
+        formClassName="user-form"
+        saving={saving}
+        error={formError}
+        submitLabel={saving ? "Lagrer..." : editingUser ? "Lagre endringer" : "Legg til bruker"}
+      />
     </main>
   );
 }

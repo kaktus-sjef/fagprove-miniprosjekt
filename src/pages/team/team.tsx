@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   FaEllipsisH,
@@ -8,7 +8,6 @@ import {
   FaPen,
   FaPlus,
   FaRegTrashAlt,
-  FaTimes,
   FaUsers
 } from "react-icons/fa";
 import { FaPeopleGroup, FaUserCheck } from "react-icons/fa6";
@@ -16,6 +15,8 @@ import { FaPeopleGroup, FaUserCheck } from "react-icons/fa6";
 import Header from "../../components/header/header";
 import Sidebar from "../../components/sidebar/sidebar";
 import DataTable, { DataTableColumn } from "../../components/dataTable/dataTable";
+import FormModal, { FormModalField } from "../../components/formModal/formModal";
+import StatCards, { StatCardOption } from "../../components/statCards/statCards";
 import {
   deleteTeam,
   createTeam,
@@ -85,6 +86,8 @@ function Team() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamProfile | null>(null);
   const [form, setForm] = useState<TeamFormState>(emptyForm);
+  const firstTeamFieldRef = useRef<HTMLInputElement | null>(null);
+  const teamDetailRef = useRef<HTMLElement | null>(null);
 
   const fetchPageData = async () => {
     try {
@@ -116,6 +119,17 @@ function Team() {
     fetchPageData();
   }, []);
 
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    // UU: Start fokus i skjemaet slik at tab-rekkefolgen blir riktig i modalen.
+    const focusTimer = window.setTimeout(() => {
+      firstTeamFieldRef.current?.focus();
+    }, 0);
+
+    return () => window.clearTimeout(focusTimer);
+  }, [isModalOpen, editingTeam]);
+
   const selectedTeam = useMemo(() => {
     return teams.find((team) => team.id === selectedTeamId) ?? teams[0];
   }, [teams, selectedTeamId]);
@@ -128,6 +142,41 @@ function Team() {
   const totalTeams = teams.length;
   const activeTeams = teams.filter((team) => team.status === "active").length;
   const inactiveTeams = teams.filter((team) => team.status === "inactive").length;
+  const teamStats: StatCardOption[] = [
+    {
+      id: "total-teams",
+      title: "Totale team",
+      value: totalTeams,
+      description: "Registrert totalt",
+      icon: FaPeopleGroup({ className: "icon" }),
+      trendIcon: FaMinus({ className: "icon" }),
+      variant: "total",
+      trend: "neutral",
+      ariaLabel: `Totale team ${totalTeams}. Registrert totalt ${totalTeams}.`
+    },
+    {
+      id: "active-teams",
+      title: "Aktive team",
+      value: activeTeams,
+      description: "Aktive nå",
+      icon: FaUserCheck({ className: "icon" }),
+      trendIcon: FaLongArrowAltUp({ className: "icon" }),
+      variant: "active",
+      trend: "positive",
+      ariaLabel: `Aktive team ${activeTeams}. Aktive nå ${activeTeams}.`
+    },
+    {
+      id: "inactive-teams",
+      title: "Deaktiverte team",
+      value: inactiveTeams,
+      description: "Deaktiverte nå",
+      icon: FaUsers({ className: "icon" }),
+      trendIcon: FaLongArrowAltDown({ className: "icon" }),
+      variant: "inactive",
+      trend: "negative",
+      ariaLabel: `Deaktiverte team ${inactiveTeams}. Deaktiverte nå ${inactiveTeams}.`
+    }
+  ];
 
   const memberColumns: DataTableColumn<UserProfile>[] = selectedTeam
     ? [
@@ -268,6 +317,15 @@ function Team() {
     }));
   };
 
+  const handleSelectTeam = (team: TeamProfile) => {
+    setSelectedTeamId(team.id);
+
+    // UU: Når en rad åpnes med tastatur, flyttes fokus til team-oversikten.
+    window.setTimeout(() => {
+      teamDetailRef.current?.focus();
+    }, 0);
+  };
+
   const handleSubmitTeam = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
@@ -307,6 +365,82 @@ function Team() {
     }
   };
 
+  const teamModalFields: FormModalField<TeamFormState>[] = [
+    {
+      name: "name",
+      id: "team-name",
+      label: "Teamnavn *",
+      placeholder: "Salg",
+      inputRef: firstTeamFieldRef
+    },
+    {
+      name: "description",
+      id: "team-description",
+      label: "Beskrivelse",
+      placeholder: "Salg og forretningsutvikling"
+    },
+    {
+      name: "lead",
+      id: "team-lead",
+      label: "Ansvarlig",
+      placeholder: "Ikke satt"
+    },
+    {
+      name: "avatarUrl",
+      id: "team-avatar",
+      label: "Avatar URL",
+      type: "url",
+      placeholder: "Valgfritt"
+    },
+    {
+      name: "status",
+      id: "team-status",
+      label: "Status",
+      options: [
+        { value: "active", label: "Aktiv" },
+        { value: "inactive", label: "Deaktivert" }
+      ]
+    }
+  ];
+
+  const teamAvatarChoices = (
+    <>
+      <div className="form-field avatar-choice-field">
+        <label>Farge</label>
+        <div className="team-choice-row">
+          {teamColorOptions.map((color) => (
+            <button
+              key={color.value}
+              type="button"
+              className={`team-choice-button color-choice team-theme-${color.value} ${form.color === color.value ? "selected" : ""}`}
+              onClick={() => updateFormField("color", color.value)}
+              aria-label={`Velg ${color.label}`}
+            >
+              <span className="color-choice-dot" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="form-field avatar-choice-field">
+        <label>Ikon</label>
+        <div className="team-choice-row">
+          {teamIconOptions.map((icon) => (
+            <button
+              key={icon.value}
+              type="button"
+              className={`team-choice-button icon-choice team-theme-${form.color || "teal"} ${form.icon === icon.value ? "selected" : ""}`}
+              onClick={() => updateFormField("icon", icon.value)}
+              aria-label={`Velg ${icon.label}`}
+            >
+              {renderTeamIconByValue(icon.value, "team-avatar-icon")}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <main className="admin-page">
       <Sidebar />
@@ -315,55 +449,7 @@ function Team() {
         <Header title="Team" />
 
         <div className="admin-body">
-          <section className="dashboard-analytics team-analytics">
-            <div className="analytics-card stat-total">
-              <div className="icon-box stat-icon-total">
-                {FaPeopleGroup({ className: "icon" })}
-              </div>
-
-              <ul className="analytics-list">
-                <li>Totale team</li>
-                <li><h3>{totalTeams}</h3></li>
-                <li className="analytics-change change-neutral">
-                  {FaMinus({ className: "icon" })}
-                  {totalTeams}
-                  <p>Registrert totalt</p>
-                </li>
-              </ul>
-            </div>
-
-            <div className="analytics-card stat-active">
-              <div className="icon-box stat-icon-active">
-                {FaUserCheck({ className: "icon" })}
-              </div>
-
-              <ul className="analytics-list">
-                <li>Aktive team</li>
-                <li><h3>{activeTeams}</h3></li>
-                <li className="analytics-change change-positive">
-                  {FaLongArrowAltUp({ className: "icon" })}
-                  {activeTeams}
-                  <p>Aktive nå</p>
-                </li>
-              </ul>
-            </div>
-
-            <div className="analytics-card stat-inactive">
-              <div className="icon-box stat-icon-inactive">
-                {FaUsers({ className: "icon" })}
-              </div>
-
-              <ul className="analytics-list">
-                <li>Deaktiverte team</li>
-                <li><h3>{inactiveTeams}</h3></li>
-                <li className="analytics-change change-negative">
-                  {FaLongArrowAltDown({ className: "icon" })}
-                  {inactiveTeams}
-                  <p>Deaktiverte nå</p>
-                </li>
-              </ul>
-            </div>
-          </section>
+          <StatCards ariaLabel="Teamstatistikk" cards={teamStats} className="team-analytics" />
 
           <section className="admin-panel">
             <div className="admin-panel-header">
@@ -391,13 +477,20 @@ function Team() {
               loadingText="Henter team..."
               emptyText="Ingen team funnet. Legg til et nytt team for å fylle databasen."
               className="admin-table team-table"
+              tableLabel="Teamtabell"
               selectedRowId={selectedTeam?.id}
-              onRowClick={(team) => setSelectedTeamId(team.id)}
+              onRowClick={handleSelectTeam}
+              getRowAriaLabel={(team) => `Åpne team ${team.name}. ${team.description || "Ingen beskrivelse"}. Status ${formatTeamStatus(team.status)}.`}
             />
           </section>
 
           {selectedTeam && (
-            <section className="team-detail-panel">
+            <section
+              className="team-detail-panel"
+              ref={teamDetailRef}
+              tabIndex={-1}
+              aria-label={`Teamoversikt for ${selectedTeam.name}`}
+            >
               <aside className="team-detail-summary">
                 <div className={`team-detail-avatar ${getTeamTheme(selectedTeam)}`}>
                   {selectedTeam.avatarUrl ? (
@@ -449,6 +542,7 @@ function Team() {
                   getRowKey={(member) => member.uid}
                   emptyText="Ingen medlemmer i dette teamet enda."
                   className="admin-table team-members-table"
+                  tableLabel={`Medlemmer i ${selectedTeam.name}`}
                 />
               </div>
             </section>
@@ -456,155 +550,25 @@ function Team() {
         </div>
       </section>
 
-      {isModalOpen && (
-        <div className="modal-backdrop" role="presentation">
-          <section
-            className="team-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="team-modal-title"
-          >
-            <div className="team-modal-header">
-              <div>
-                <h2 id="team-modal-title">
-                  {editingTeam ? "Rediger team" : "Nytt team"}
-                </h2>
-                <p>
-                  {editingTeam ? "Oppdater informasjonen for teamet." : "Legg til et nytt team i databasen."}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close-button"
-                onClick={closeModal}
-                aria-label="Lukk"
-              >
-                {FaTimes({ className: "icon" })}
-              </button>
-            </div>
-
-            <form className="team-form" onSubmit={handleSubmitTeam}>
-              <div className="form-field">
-                <label htmlFor="team-name">Teamnavn *</label>
-                <input
-                  id="team-name"
-                  type="text"
-                  value={form.name}
-                  onChange={(event) => updateFormField("name", event.target.value)}
-                  placeholder="Salg"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="team-description">Beskrivelse</label>
-                <input
-                  id="team-description"
-                  type="text"
-                  value={form.description}
-                  onChange={(event) => updateFormField("description", event.target.value)}
-                  placeholder="Salg og forretningsutvikling"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="team-lead">Ansvarlig</label>
-                <input
-                  id="team-lead"
-                  type="text"
-                  value={form.lead}
-                  onChange={(event) => updateFormField("lead", event.target.value)}
-                  placeholder="Ikke satt"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="team-avatar">Avatar URL</label>
-                <input
-                  id="team-avatar"
-                  type="url"
-                  value={form.avatarUrl}
-                  onChange={(event) => updateFormField("avatarUrl", event.target.value)}
-                  placeholder="Valgfritt"
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="team-status">Status</label>
-                <select
-                  id="team-status"
-                  value={form.status}
-                  onChange={(event) => updateFormField("status", event.target.value)}
-                >
-                  <option value="active">Aktiv</option>
-                  <option value="inactive">Deaktivert</option>
-                </select>
-              </div>
-
-              <div className="form-field avatar-choice-field">
-                <label>Farge</label>
-                <div className="team-choice-row">
-                  {teamColorOptions.map((color) => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      className={`team-choice-button color-choice team-theme-${color.value} ${form.color === color.value ? "selected" : ""}`}
-                      onClick={() => updateFormField("color", color.value)}
-                      aria-label={`Velg ${color.label}`}
-                    >
-                      <span className="color-choice-dot" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-field avatar-choice-field">
-                <label>Ikon</label>
-                <div className="team-choice-row">
-                  {teamIconOptions.map((icon) => (
-                    <button
-                      key={icon.value}
-                      type="button"
-                      className={`team-choice-button icon-choice team-theme-${form.color || "teal"} ${form.icon === icon.value ? "selected" : ""}`}
-                      onClick={() => updateFormField("icon", icon.value)}
-                      aria-label={`Velg ${icon.label}`}
-                    >
-                      {renderTeamIconByValue(icon.value, "team-avatar-icon")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {formError && <p className="form-error">{formError}</p>}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="secondary-action-button"
-                  onClick={closeModal}
-                  disabled={saving}
-                >
-                  Avbryt
-                </button>
-
-                <button
-                  type="submit"
-                  className="primary-action-button"
-                  disabled={saving}
-                >
-                  {saving ? "Lagrer..." : editingTeam ? "Lagre endringer" : "Legg til team"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
+      <FormModal
+        isOpen={isModalOpen}
+        title={editingTeam ? "Rediger team" : "Nytt team"}
+        description={editingTeam ? "Oppdater informasjonen for teamet." : "Legg til et nytt team i databasen."}
+        titleId="team-modal-title"
+        onClose={closeModal}
+        className="team-modal"
+        onSubmit={handleSubmitTeam}
+        values={form}
+        fields={teamModalFields}
+        onFieldChange={updateFormField}
+        formClassName="team-form"
+        saving={saving}
+        error={formError}
+        extraContent={teamAvatarChoices}
+        submitLabel={saving ? "Lagrer..." : editingTeam ? "Lagre endringer" : "Legg til team"}
+      />
     </main>
   );
 }
 
 export default Team;
-
-
-
-

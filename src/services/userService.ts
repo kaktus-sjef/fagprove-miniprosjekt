@@ -53,6 +53,7 @@ export function getEmailKey(email: string) {
   return encodeURIComponent(email.trim().toLowerCase());
 }
 
+// Brukes før login/signup for å vite om e-posten skal bruke passord eller Google.
 export async function getLoginProviderByEmail(email: string) {
   const emailKey = getEmailKey(email);
   const providerRef = doc(db, "authProviders", emailKey);
@@ -102,6 +103,7 @@ export async function createUserProfile(
 ) {
   const userRef = doc(db, "users", user.uid);
 
+  // Nye brukere får alltid "waiting" til en administrator godkjenner rollen.
   const profile: UserProfile = {
     uid: user.uid,
     name: input.name.trim(),
@@ -138,6 +140,7 @@ export async function createUserProfile(
 export async function createManagedUserProfile(input: ManageUserInput) {
   const userRef = doc(collection(db, "users"));
 
+  // Admin-oppretting lager en Firestore-profil. Selve Firebase Auth-kontoen må håndteres separat.
   const profile: UserProfile = {
     uid: userRef.id,
     name: input.name.trim(),
@@ -174,6 +177,7 @@ export async function updateManagedUserProfile(
 ) {
   const userRef = doc(db, "users", uid);
 
+  // roleVerified følger rollen: waiting betyr ikke godkjent, alle andre roller godkjennes.
   await updateDoc(userRef, {
     name: input.name.trim(),
     email: input.email?.trim().toLowerCase() || "",
@@ -193,6 +197,7 @@ export async function syncUserAfterLogin(user: User) {
     return null;
   }
 
+  // Holder Firestore-profilen oppdatert med Firebase Auth sin e-postverifisering.
   await updateDoc(userRef, {
     lastLogin: serverTimestamp(),
     emailVerified: user.emailVerified

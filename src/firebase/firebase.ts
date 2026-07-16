@@ -7,8 +7,14 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+const firebaseApiKey = process.env.REACT_APP_FIREBASE_API_KEY;
+
+if (!firebaseApiKey) {
+  throw new Error("Mangler miljøvariabelen REACT_APP_FIREBASE_API_KEY.");
+}
+
 const firebaseConfig = {
-  apiKey: "AIzaSyBn44lNLuXopmvUuHdwL_rYy9a9qAJlCZE",
+  apiKey: firebaseApiKey,
   authDomain: "fagprove-miniprosjekt.firebaseapp.com",
   projectId: "fagprove-miniprosjekt",
   storageBucket: "fagprove-miniprosjekt.firebasestorage.app",

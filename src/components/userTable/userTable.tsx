@@ -49,7 +49,7 @@ const columnLabels: Record<UserTableColumn, string> = {
   roleVerified: "Rolle verifisert",
   status: "Status",
   createdAt: "Opprettet",
-  lastLogin: "Sist pÃ¥logget",
+  lastLogin: "Sist pålogget",
   actions: "Handlinger"
 };
 
@@ -67,6 +67,17 @@ function formatDate(dateValue: any) {
 
 function emptyValue() {
   return FaMinus({ className: "missing-value-icon" });
+}
+
+// UU: Brukes på handling-knappen, siden tab-fokus ellers bare ville lest opp navnet.
+function getUserScreenReaderText(user: UserProfile, teams: TeamProfile[]) {
+  return [
+    `Navn ${user.name || "Ukjent bruker"}`,
+    `E-post ${user.email || "ikke registrert"}`,
+    `Team ${getTeamLabel(user.team, teams)}`,
+    `Rolle ${formatRole(user.role)}`,
+    `Status ${formatUserStatus(user.status)}`
+  ].join(". ");
 }
 
 function UserTable({
@@ -139,7 +150,7 @@ function UserTable({
               className="action-button"
               onClick={() => setOpenActionsFor(openActionsFor === user.uid ? null : user.uid)}
               aria-expanded={openActionsFor === user.uid}
-              aria-label={`Handlinger for ${user.name || user.email}`}
+              aria-label={`Handlinger. ${getUserScreenReaderText(user, teams)}`}
             >
               {FaEllipsisH({ className: "icon" })}
             </button>

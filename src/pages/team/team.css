@@ -294,6 +294,11 @@
   overflow: hidden;
 }
 
+.team-detail-panel:focus {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 3px;
+}
+
 .team-detail-summary {
   padding: 24px;
   border-right: 1px solid #e5e7eb;

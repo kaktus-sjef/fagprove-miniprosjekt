@@ -42,6 +42,7 @@ export type TeamInput = {
 
 export async function getAllTeams() {
   const teamsRef = collection(db, "teams");
+  // Sorteres i databasen slik at dropdowns og tabeller får samme rekkefølge.
   const teamsQuery = query(teamsRef, orderBy("name"));
   const snapshot = await getDocs(teamsQuery);
 
@@ -55,6 +56,7 @@ export async function createTeam(input: TeamInput) {
   const teamRef = doc(collection(db, "teams"));
   const teamName = input.name.trim();
 
+  // color/icon brukes av team-avatarene. Fallback gjør gamle/ufullstendige team trygge å vise.
   await setDoc(teamRef, {
     name: teamName,
     description: input.description?.trim() || "",
@@ -83,6 +85,7 @@ export async function createTeam(input: TeamInput) {
 export async function updateTeam(teamId: string, input: TeamInput) {
   const teamRef = doc(db, "teams", teamId);
 
+  // Oppdaterer bare feltene som kan redigeres i team-skjemaet.
   await updateDoc(teamRef, {
     name: input.name.trim(),
     description: input.description?.trim() || "",
